@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SiteOrigin } from './geodesy'
-import { frameForPatch, googleHybridUrl, uvInFrame, webMercatorTile } from './mapDrape'
+import { frameForPatch, googleTileUrl, messageFromGoogleError, uvInFrame, webMercatorTile } from './mapDrape'
 
 const origin: SiteOrigin = { latitudeDeg: 0, longitudeDeg: 0, groundElevationM: 0, label: 'Origin' }
 
@@ -21,10 +21,12 @@ describe('map drape', () => {
     expect(frame.x1 - frame.x0).toBeLessThanOrEqual(4)
   })
 
-  it('builds a Google hybrid image URL without storing the key in the path twice', () => {
-    const url = googleHybridUrl(45, 2, 14, 'test-key')
-    expect(url).toContain('maptype=hybrid')
-    expect(url).toContain('key=test-key')
-    expect(url.startsWith('https://maps.googleapis.com/maps/api/staticmap?')).toBe(true)
+  it('explains a rejected Google key without echoing the key', () => {
+    const url = googleTileUrl(12, 10, 20, 'session-token', 'secret-key')
+    expect(url).toContain('/2dtiles/12/10/20')
+    expect(url).toContain('session=session-token')
+    const message = messageFromGoogleError(403, { error: { message: 'forbidden' } })
+    expect(message).toContain('Map Tiles API')
+    expect(message).not.toContain('secret-key')
   })
 })

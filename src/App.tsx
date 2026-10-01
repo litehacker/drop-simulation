@@ -97,17 +97,23 @@ export function App() {
               </label>
               {surfaceStyle === 'google' && (
                 <label className="chip-range">
-                  Google key
+                  Map Tiles key
                   <input
-                    type="password"
+                    type="text"
                     autoComplete="off"
-                    placeholder="Maps Static API key"
+                    spellCheck={false}
+                    placeholder="Paste key, Map Tiles API enabled"
                     value={googleMapsKey}
-                    onChange={(event) => setGoogleMapsKey(event.target.value)}
+                    onChange={(event) => setGoogleMapsKey(event.target.value.trim())}
                   />
                 </label>
               )}
             </div>
+            {mapCaption && (
+              <p className={mapCaption.startsWith('Google imagery did not') || mapCaption.startsWith('Google rejected') || mapCaption.startsWith('Google refused') ? 'surface-status bad' : 'surface-status'}>
+                {mapCaption}
+              </p>
+            )}
             <p className="stage-note">
               East, North, Up. Arrows are exaggerated so forces and velocities can share the picture. The legend lists the real magnitudes. The object is drawn larger than its physical diameter.
               {terrainCaption ? ` ${terrainCaption}` : ''}
