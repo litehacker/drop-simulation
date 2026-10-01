@@ -40,6 +40,9 @@ function NowPanel() {
   const result = useSimStore((state) => state.result)
   const time = useSimStore((state) => state.time)
   const scenario = useSimStore((state) => state.scenario)
+  const visibleVectors = useSimStore((state) => state.visibleVectors)
+  const toggleVector = useSimStore((state) => state.toggleVector)
+  const setAllVectors = useSimStore((state) => state.setAllVectors)
   const sample = sampleAt(result.samples, time)
   const metrics = result.metrics
   const positionError = sample
@@ -70,13 +73,25 @@ function NowPanel() {
             <div><dt>Modeled loss</dt><dd>{(sample.modeledLoss * 100).toFixed(1)}%</dd></div>
             <div><dt>Modeled latency</dt><dd>{(sample.modeledLatency * 1000).toFixed(0)} ms</dd></div>
           </dl>
+          <div className="legend-actions">
+            <h2>Vectors</h2>
+            <button type="button" onClick={() => setAllVectors(true)}>Show all</button>
+            <button type="button" onClick={() => setAllVectors(false)}>Hide all</button>
+          </div>
           <ul className="legend">
             {vectorLegend.map((entry) => (
-              <li key={entry.id} className="legend-row" tabIndex={0}>
-                <i style={{ background: colors[entry.id] }} />
-                <span>{entry.name}</span>
-                <strong>{magnitude(entry.id, sample, scenario.object.mass)}</strong>
-                <em className="bubble">{entry.tip}</em>
+              <li key={entry.id} className={visibleVectors[entry.id] ? 'legend-row' : 'legend-row off'}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={visibleVectors[entry.id]}
+                    onChange={() => toggleVector(entry.id)}
+                  />
+                  <i style={{ background: colors[entry.id] }} />
+                  <span>{entry.name}</span>
+                  <strong>{magnitude(entry.id, sample, scenario.object.mass)}</strong>
+                </label>
+                <em className="bubble">{entry.tip} Uncheck to hide this arrow. The number stays.</em>
               </li>
             ))}
           </ul>

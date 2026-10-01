@@ -17,11 +17,28 @@ export const colors = {
   object: '#e2a33a',
 }
 
+export const vectorIds = ['wind', 'velocity', 'ground', 'air', 'gravity', 'drag', 'lift', 'correction', 'link'] as const
+export type VectorId = (typeof vectorIds)[number]
+
 export interface LegendEntry {
-  id: keyof typeof colors
+  id: VectorId
   name: string
   unit: string
   tip: string
+}
+
+export function defaultVectorVisibility(): Record<VectorId, boolean> {
+  return {
+    wind: true,
+    velocity: true,
+    ground: true,
+    air: true,
+    gravity: true,
+    drag: true,
+    lift: true,
+    correction: true,
+    link: true,
+  }
 }
 
 export const vectorLegend: LegendEntry[] = [

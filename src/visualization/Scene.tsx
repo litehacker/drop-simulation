@@ -130,6 +130,8 @@ function Movers() {
     attribute.needsUpdate = true
     const material = linkLine.material as THREE.LineBasicMaterial
     material.color.set(sample.modeledLoss > 0.4 ? colors.gravity : sample.modeledLoss > 0.12 ? colors.air : colors.link)
+    linkLine.visible = state.visibleVectors.link
+    if (rangeRef.current) rangeRef.current.visible = state.visibleVectors.link
   })
 
   const diameter = useSimStore((state) => state.scenario.object.diameter)
@@ -297,6 +299,7 @@ export function SceneContents() {
   const ground = Math.max(240, span * 1.8)
   const cell = ground > 800 ? 50 : 25
   const maxArrow = Math.max(18, span * 0.22)
+  const visible = useSimStore((state) => state.visibleVectors)
   return (
     <>
       <color attach="background" args={['#101614']} />
@@ -340,18 +343,17 @@ export function SceneContents() {
           <meshBasicMaterial color={colors.gravity} />
         </mesh>
       )}
-      {field.map((mark) => (
-        <StaticArrow key={mark.key} origin={mark.origin} vector={mark.vector} />
-      ))}
+      {visible.wind &&
+        field.map((mark) => <StaticArrow key={mark.key} origin={mark.origin} vector={mark.vector} />)}
       <Movers />
-      <Arrow maxVisual={maxArrow} color={colors.wind} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.wind, VELOCITY_SCALE) })} />
-      <Arrow maxVisual={maxArrow} color={colors.velocity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.trueVelocity, VELOCITY_SCALE) })} />
-      <Arrow maxVisual={maxArrow} color={colors.ground} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.groundVelocity, VELOCITY_SCALE) })} />
-      <Arrow maxVisual={maxArrow} color={colors.air} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.airRelative, VELOCITY_SCALE) })} />
-      <Arrow maxVisual={maxArrow} color={colors.gravity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.gravity, FORCE_SCALE) })} />
-      <Arrow maxVisual={maxArrow} color={colors.drag} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.drag, FORCE_SCALE) })} />
-      <Arrow maxVisual={maxArrow} color={colors.lift} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.lift, FORCE_SCALE) })} />
-      <Arrow maxVisual={maxArrow} color={colors.correction} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.correction, FORCE_SCALE) })} />
+      {visible.wind && <Arrow maxVisual={maxArrow} color={colors.wind} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.wind, VELOCITY_SCALE) })} />}
+      {visible.velocity && <Arrow maxVisual={maxArrow} color={colors.velocity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.trueVelocity, VELOCITY_SCALE) })} />}
+      {visible.ground && <Arrow maxVisual={maxArrow} color={colors.ground} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.groundVelocity, VELOCITY_SCALE) })} />}
+      {visible.air && <Arrow maxVisual={maxArrow} color={colors.air} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.airRelative, VELOCITY_SCALE) })} />}
+      {visible.gravity && <Arrow maxVisual={maxArrow} color={colors.gravity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.gravity, FORCE_SCALE) })} />}
+      {visible.drag && <Arrow maxVisual={maxArrow} color={colors.drag} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.drag, FORCE_SCALE) })} />}
+      {visible.lift && <Arrow maxVisual={maxArrow} color={colors.lift} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.lift, FORCE_SCALE) })} />}
+      {visible.correction && <Arrow maxVisual={maxArrow} color={colors.correction} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.correction, FORCE_SCALE) })} />}
       <CameraRig />
       <FrameTrajectory />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
