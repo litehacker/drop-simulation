@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyDropBody } from './dropBodies'
-import { suggestRelease } from './releaseSolve'
+import { suggestDropLocation, suggestRelease } from './releaseSolve'
 import { runSimulation } from './engine'
 import { cloneScenario, createDefaultScenario } from './scenario'
 
@@ -84,4 +84,69 @@ describe('release advice', () => {
     expect(advice.reachable).toBe(true)
     expect(advice.note).toContain('m/s')
   }, 20000)
+
+  it('places a vacuum release on the approach so the sphere hits the destination', () => {
+    const scenario = createDefaultScenario()
+    scenario.object.cd = 0
+    scenario.object.buoyancy = false
+    scenario.control.enabled = false
+    scenario.wind.speed = 0
+    scenario.wind.turbulenceStd = 0
+    scenario.wind.gustsEnabled = false
+    scenario.parent.position = { x: 0, y: 0, z: 100 }
+    scenario.parent.horizontalSpeed = 20
+    scenario.parent.headingDeg = 0
+    scenario.parent.verticalSpeed = 0
+    scenario.control.target = { x: 0, y: 80, z: 0 }
+    scenario.control.targetRadius = 12
+    scenario.simulation.physicsDt = 0.02
+    const advice = suggestDropLocation(scenario)
+    const flightTime = Math.sqrt((2 * 100) / scenario.atmosphere.gravity)
+    const expectedNorth = 80 - 20 * flightTime
+    expect(advice.reachable).toBe(true)
+    expect(advice.releaseNorth).toBeGreaterThan(expectedNorth - 8)
+    expect(advice.releaseNorth).toBeLessThan(expectedNorth + 8)
+    expect(Math.abs(advice.releaseEast ?? 99)).toBeLessThan(8)
+    expect(advice.horizontalSpeed).toBe(20)
+    expect(advice.headingDeg).toBeLessThan(15)
+  })
+
+  it('moves the drop upwind when the wind blows toward the east', () => {
+    const scenario = createDefaultScenario()
+    applyDropBody(scenario, 'sphere')
+    scenario.wind.speed = 8
+    scenario.wind.directionDeg = 90
+    scenario.wind.turbulenceStd = 0
+    scenario.wind.gustsEnabled = false
+    scenario.parent.position = { x: 0, y: 0, z: 120 }
+    scenario.parent.horizontalSpeed = 25
+    scenario.parent.headingDeg = 0
+    scenario.parent.verticalSpeed = 0
+    scenario.control.target = { x: 0, y: 40, z: 0 }
+    scenario.control.targetRadius = 15
+    scenario.simulation.physicsDt = 0.02
+    const advice = suggestDropLocation(scenario)
+    expect(advice.reachable).toBe(true)
+    expect(advice.releaseEast ?? 0).toBeLessThan(-5)
+  })
+
+  it('releases a glider about one glide before the destination', () => {
+    const scenario = createDefaultScenario()
+    applyDropBody(scenario, 'small-glider')
+    scenario.wind.speed = 0
+    scenario.wind.turbulenceStd = 0
+    scenario.wind.gustsEnabled = false
+    scenario.parent.position = { x: 0, y: 0, z: 50 }
+    scenario.parent.horizontalSpeed = 16
+    scenario.parent.headingDeg = 0
+    scenario.parent.verticalSpeed = 0
+    scenario.control.target = { x: 0, y: 0, z: 0 }
+    scenario.control.targetRadius = 80
+    scenario.simulation.physicsDt = 0.05
+    const advice = suggestDropLocation(scenario)
+    expect(advice.reachable).toBe(true)
+    expect(advice.releaseNorth ?? 0).toBeLessThan(-50 * 8 * 0.45)
+    expect(advice.releaseNorth ?? 0).toBeGreaterThan(-50 * 8 * 1.5)
+    expect(advice.note).toContain('lift-to-drag')
+  })
 })

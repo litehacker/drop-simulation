@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { applyDropBody, dropBodies } from '../simulation/dropBodies'
-import { passiveFlightDuration, suggestRelease, type ReleaseAdvice } from '../simulation/releaseSolve'
+import { passiveFlightDuration, suggestDropLocation, suggestRelease, type ReleaseAdvice } from '../simulation/releaseSolve'
 import { useSimStore } from '../store/useSimStore'
 import { ParamField } from './ParamField'
 
@@ -39,8 +39,7 @@ export function DropPlan() {
     <div>
       <h2>Drop plan</h2>
       <p className="calc">
-        Set where the carrier lets go, and the landing area you want to hit. After a run, the readout says whether the impact is inside that area.
-        Suggest release speed searches heading and speed with steering left off.
+        Set the landing area, then either search a release speed from the carrier, or ask where to let go when the plane is already heading toward that destination.
       </p>
       <h2>Carrier release</h2>
       {number('plan-east', 'East', scenario.parent.position.x, 'm', 'Carrier position, east of the local origin.', (value) => patch((draft) => { draft.parent.position.x = value }))}
@@ -66,11 +65,29 @@ export function DropPlan() {
         >
           {solving ? 'Searching…' : 'Suggest release speed'}
         </button>
+        <button
+          className="btn quiet"
+          disabled={solving}
+          onClick={() => {
+            setSolving(true)
+            window.setTimeout(() => {
+              setAdvice(suggestDropLocation(scenario))
+              setSolving(false)
+            }, 0)
+          }}
+        >
+          {solving ? 'Searching…' : 'Suggest drop location'}
+        </button>
         {advice && (
           <button
             className="btn primary"
             onClick={() => {
               patch((draft) => {
+                if (advice.releaseEast !== undefined && advice.releaseNorth !== undefined) {
+                  draft.parent.position.x = advice.releaseEast
+                  draft.parent.position.y = advice.releaseNorth
+                  if (advice.releaseAltitude !== undefined) draft.parent.position.z = advice.releaseAltitude
+                }
                 draft.parent.horizontalSpeed = advice.horizontalSpeed
                 draft.parent.headingDeg = advice.headingDeg
                 draft.parent.inheritVelocity = true
