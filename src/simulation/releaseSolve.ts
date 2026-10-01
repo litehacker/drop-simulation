@@ -167,13 +167,40 @@ function refineDropPoint(scenario: Scenario, speed: number): DropPoint {
   let north = target.y - Math.cos(inbound) * distance
   let heading = bearingToward(east, north, target.x, target.y, scenario.parent.headingDeg)
   let best: DropPoint = { east, north, heading, speed, miss: Number.POSITIVE_INFINITY, landed: false }
-  for (let step = 0; step < 4; step += 1) {
+  for (let step = 0; step < 8; step += 1) {
     heading = bearingToward(east, north, target.x, target.y, heading)
     const score = scoreRelease(scenario, speed, heading, { x: east, y: north, z: altitude })
+    const improved = score.miss < best.miss - 0.25
     if (score.miss < best.miss) best = { east, north, heading, speed, miss: score.miss, landed: score.landed }
-    if (!score.landed || score.miss <= scenario.control.targetRadius) break
+    if (!score.landed || score.miss <= 1) break
+    if (!improved) break
     east -= score.landingEast - target.x
     north -= score.landingNorth - target.y
+  }
+  return best.landed && best.miss > 1 ? polishDropPoint(scenario, best) : best
+}
+
+function polishDropPoint(scenario: Scenario, start: DropPoint): DropPoint {
+  const target = scenario.control.target
+  const altitude = scenario.parent.position.z
+  let best = start
+  for (const step of [6, 2, 0.6]) {
+    let moved = false
+    for (const eastShift of [-step, 0, step]) {
+      for (const northShift of [-step, 0, step]) {
+        if (eastShift === 0 && northShift === 0) continue
+        const east = best.east + eastShift
+        const north = best.north + northShift
+        const heading = bearingToward(east, north, target.x, target.y, best.heading)
+        const score = scoreRelease(scenario, best.speed, heading, { x: east, y: north, z: altitude })
+        if (score.miss < best.miss) {
+          best = { east, north, heading, speed: best.speed, miss: score.miss, landed: score.landed }
+          moved = true
+        }
+      }
+    }
+    if (best.miss <= 1) break
+    if (!moved) break
   }
   return best
 }
@@ -187,9 +214,10 @@ function speedChoices(scenario: Scenario): number[] {
 }
 
 /**
- * The plane flies toward the destination. Search where to release, and the
- * speed that lets this object land in the area. Heading at release points at
- * the destination. Wind and the object are the scenario's current values.
+ * The plane flies toward the destination. Search where to release so the
+ * impact estimate is on the center of the landing area, not merely inside it.
+ * Heading at release points at the destination. Wind and the object are the
+ * scenario's current values.
  */
 export function suggestDropLocation(scenario: Scenario): ReleaseAdvice {
   const altitude = scenario.parent.position.z
@@ -205,13 +233,11 @@ export function suggestDropLocation(scenario: Scenario): ReleaseAdvice {
   }
 
   let best = refineDropPoint(scenario, speedChoices(scenario)[0])
-  if (!(best.landed && best.miss <= scenario.control.targetRadius)) {
+  if (!(best.landed && best.miss <= 1)) {
     for (const speed of speedChoices(scenario).slice(1)) {
       const point = refineDropPoint(scenario, speed)
-      const betterReach = point.landed && point.miss <= scenario.control.targetRadius && !(best.landed && best.miss <= scenario.control.targetRadius)
-      const closer = point.miss < best.miss
-      if (betterReach || closer) best = point
-      if (best.landed && best.miss <= scenario.control.targetRadius) break
+      if (point.miss < best.miss) best = point
+      if (best.landed && best.miss <= 1) break
     }
   }
 
@@ -226,11 +252,12 @@ export function suggestDropLocation(scenario: Scenario): ReleaseAdvice {
   const place = `Drop at east ${east.toFixed(1)} m, north ${north.toFixed(1)} m, altitude ${altitude.toFixed(0)} m.`
   const flight = ` Head toward the destination at ${speed.toFixed(0)} m/s on heading ${heading.toFixed(1)}°.`
   const object = ` ${objectClause(scenario)}`
+  const ring = scenario.control.targetRadius.toFixed(0)
   const outcome = !landed
     ? ' That release did not reach the ground in the search.'
-    : reachable
-      ? ` The impact is predicted ${miss.toFixed(0)} m from the ring center, inside the ${scenario.control.targetRadius.toFixed(0)} m area.`
-      : ` The closest approach still misses by ${miss.toFixed(0)} m. Altitude, wind, or the object's lift-to-drag may not leave a release point that lands inside the area.`
+    : miss <= 2
+      ? ` The estimate hits the center of the landing area (${miss.toFixed(1)} m from it), inside the ${ring} m ring.`
+      : ` The closest estimate is ${miss.toFixed(1)} m from the center${reachable ? `, still inside the ${ring} m ring` : `, outside the ${ring} m ring`}.`
   return {
     reachable,
     horizontalSpeed: speed,
