@@ -1,6 +1,6 @@
 import { Grid, GizmoHelper, GizmoViewport, Line, OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { enuToThree, threeToEnu } from '../coordinates/enu'
 import { length, type Vec3 } from '../math/vec3'
@@ -193,50 +193,89 @@ function AimCircle() {
   const radius = useSimStore((state) => state.scenario.control.targetRadius)
   const terrain = useSimStore((state) => state.terrain)
   const lift = terrain ? heightAt(terrain, target.x, target.y) : 0
-  const patch = useSimStore((state) => state.patch)
-  const setDraggingAim = useSimStore((state) => state.setDraggingAim)
-  const { gl } = useThree()
+  const { gl, camera } = useThree()
+  const ringRef = useRef<THREE.Mesh>(null)
+  const centerRef = useRef<THREE.Mesh>(null)
   const dragging = useRef(false)
-  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
+  const lockedZ = useRef<number | null>(null)
+  const [, redraw] = useState(0)
+  const raycaster = useMemo(() => new THREE.Raycaster(), [])
+  const pointer = useMemo(() => new THREE.Vector2(), [])
   const hit = useMemo(() => new THREE.Vector3(), [])
-  const place = (event: { ray: THREE.Ray; stopPropagation: () => void }) => {
-    if (!dragging.current) return
-    event.stopPropagation()
-    if (!event.ray.intersectPlane(plane, hit)) return
-    const enu = threeToEnu(hit.x, hit.y, hit.z)
-    patch((draft) => {
-      draft.control.target.x = enu.x
-      draft.control.target.y = enu.y
-      draft.control.target.z = 0
-    })
-  }
-  const grab = (event: { stopPropagation: () => void; nativeEvent: PointerEvent }) => {
-    event.stopPropagation()
-    dragging.current = true
-    setDraggingAim(true)
-    gl.domElement.style.cursor = 'grabbing'
-    gl.domElement.setPointerCapture(event.nativeEvent.pointerId)
-  }
-  const release = (event: { nativeEvent: PointerEvent }) => {
-    dragging.current = false
-    setDraggingAim(false)
-    gl.domElement.style.cursor = ''
-    if (gl.domElement.hasPointerCapture(event.nativeEvent.pointerId)) {
-      gl.domElement.releasePointerCapture(event.nativeEvent.pointerId)
+  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
+
+  useEffect(() => {
+    const element = gl.domElement
+    const handles = () => [centerRef.current, ringRef.current].filter((mesh): mesh is THREE.Mesh => mesh !== null)
+    const aim = (event: PointerEvent) => {
+      const rect = element.getBoundingClientRect()
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(pointer, camera)
     }
-  }
+    const onDown = (event: PointerEvent) => {
+      if (event.button !== 0) return
+      aim(event)
+      const hitHandle = raycaster.intersectObjects(handles(), false)[0]
+      if (!hitHandle) return
+      event.stopImmediatePropagation()
+      dragging.current = true
+      plane.set(new THREE.Vector3(0, 1, 0), -hitHandle.point.y)
+      lockedZ.current = hitHandle.point.y
+      element.style.cursor = 'grabbing'
+      redraw((value) => value + 1)
+    }
+    const onMove = (event: PointerEvent) => {
+      if (!dragging.current) {
+        aim(event)
+        element.style.cursor = raycaster.intersectObjects(handles(), false).length > 0 ? 'grab' : ''
+        return
+      }
+      aim(event)
+      if (!raycaster.ray.intersectPlane(plane, hit)) return
+      const enu = threeToEnu(hit.x, hit.y, hit.z)
+      useSimStore.getState().patch((draft) => {
+        draft.control.target.x = enu.x
+        draft.control.target.y = enu.y
+        draft.control.target.z = 0
+      })
+    }
+    const onUp = () => {
+      if (!dragging.current) return
+      dragging.current = false
+      lockedZ.current = null
+      element.style.cursor = ''
+      redraw((value) => value + 1)
+    }
+    element.addEventListener('pointerdown', onDown, true)
+    element.addEventListener('pointermove', onMove)
+    element.addEventListener('pointerup', onUp)
+    element.addEventListener('pointercancel', onUp)
+    window.addEventListener('blur', onUp)
+    return () => {
+      element.removeEventListener('pointerdown', onDown, true)
+      element.removeEventListener('pointermove', onMove)
+      element.removeEventListener('pointerup', onUp)
+      element.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('blur', onUp)
+      if (dragging.current) element.style.cursor = ''
+    }
+  }, [gl, camera, raycaster, pointer, plane, hit])
+
+  const z = lockedZ.current ?? 0.7 + lift
+  const band = Math.min(6, Math.max(1.5, radius * 0.12))
   return (
-    <group position={enuToThree({ x: target.x, y: target.y, z: 0.7 + lift })}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} onPointerDown={grab} onPointerMove={place} onPointerUp={release}>
+    <group position={enuToThree({ x: target.x, y: target.y, z })}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
         <circleGeometry args={[Math.max(radius, 2), 48]} />
         <meshBasicMaterial color={colors.target} transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[Math.max(radius - Math.min(2, radius * 0.08), 0.4), Math.max(radius, 0.8), 64]} />
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[Math.max(radius - band, 0.4), radius + band * 0.35, 64]} />
         <meshBasicMaterial color={colors.target} transparent opacity={0.95} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0, 0.5, 0]} onPointerDown={grab} onPointerMove={place} onPointerUp={release}>
-        <sphereGeometry args={[Math.max(1.4, Math.min(radius * 0.08, 4)), 16, 16]} />
+      <mesh ref={centerRef} position={[0, 0.5, 0]}>
+        <sphereGeometry args={[Math.max(2.2, Math.min(radius * 0.12, 6)), 16, 16]} />
         <meshBasicMaterial color="#f7f4ea" />
       </mesh>
     </group>
@@ -272,8 +311,7 @@ function CameraRig() {
     if (mode === 'top') camera.up.set(0, 0, 1)
     else camera.up.set(0, 1, 0)
   }, [mode, camera])
-  const draggingAim = useSimStore((state) => state.draggingAim)
-  return <OrbitControls makeDefault enabled={(mode === 'orbit' || mode === 'free') && !draggingAim} maxPolarAngle={Math.PI * 0.49} />
+  return <OrbitControls makeDefault enabled={mode === 'orbit' || mode === 'free'} maxPolarAngle={Math.PI * 0.49} />
 }
 
 function FrameTrajectory() {

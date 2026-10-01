@@ -100,7 +100,7 @@ Mass stays at the value on the object unless **Suggestion may change mass** is o
 
 ## Moving the aim circle
 
-The destination is a circle on the ground. Its center is the point the drop suggestion tries to hit. Drag the filled circle in the 3D view, or the ring on the east-north map, and the center follows the pointer. The orbit camera stays still while you drag in the 3D view. Release the pointer, then run again to see the new miss.
+The destination is a circle on the ground. Its center is the point the drop suggestion tries to hit. Drag the white center or the ring in the 3D view, or the ring on the east-north map. The rest of the view still orbits. Letting go of the pointer always releases the circle, including over a hill. While you drag, the circle stays at the height where you picked it up, then sits on the terrain when you release. Run again to see the new miss.
 
 ## Environment
 
