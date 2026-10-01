@@ -120,6 +120,9 @@ input[type="number"], input[type="text"], select {
 input[type="checkbox"] { accent-color: var(--amber); }
 .field.toggle { grid-template-columns: 1fr auto; align-items: center; }
 .calc, .warn, .stage-note { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.outcome { font-size: 13px; line-height: 1.45; border-radius: 8px; padding: 8px 10px; }
+.outcome.good { color: #d7f5c8; background: #1c3324; }
+.outcome.bad { color: #ffd0c8; background: #3a2220; }
 .warn { color: #f0c7a2; }
 .preset-grid { display: grid; gap: 6px; }
 .preset, .library button {

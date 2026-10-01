@@ -7,6 +7,7 @@ export function MapPlot() {
   const samples = useSimStore((state) => state.result.samples)
   const prediction = useSimStore((state) => state.result.prediction)
   const target = useSimStore((state) => state.scenario.control.target)
+  const carrier = useSimStore((state) => state.scenario.parent.position)
   const radius = useSimStore((state) => state.scenario.control.targetRadius)
   const landing = useSimStore((state) => state.result.landing)
   const comparison = useSimStore((state) => state.comparison)
@@ -18,6 +19,7 @@ export function MapPlot() {
     ...samples.map((sample) => ({ e: sample.truePosition.x, n: sample.truePosition.y })),
     ...prediction.map((sample) => ({ e: sample.position.x, n: sample.position.y })),
     { e: target.x, n: target.y },
+    { e: carrier.x, n: carrier.y },
     ...(landing ? [{ e: landing.position.x, n: landing.position.y }] : []),
     ...(monteCarlo?.landings.map((point) => ({ e: point.east, n: point.north })) ?? []),
     ...(monteCarlo?.meanEast !== null && monteCarlo?.meanEast !== undefined && monteCarlo.meanNorth !== null
@@ -53,6 +55,9 @@ export function MapPlot() {
         <path d={path(samples.map((sample) => ({ e: sample.estimatedPosition.x, n: sample.estimatedPosition.y })))} stroke={colors.estimated} fill="none" strokeDasharray="2 3" />
         <path d={path(samples.map((sample) => ({ e: sample.truePosition.x, n: sample.truePosition.y })))} stroke={colors.truePath} fill="none" strokeWidth="2" />
         <circle cx={xOf(target.x)} cy={yOf(target.y)} r={Math.max(radius * scale, 3)} fill="none" stroke={colors.target} />
+        <text x={xOf(target.x) + 8} y={yOf(target.y) - 6} className="map-label">target</text>
+        <rect x={xOf(carrier.x) - 5} y={yOf(carrier.y) - 5} width="10" height="10" fill="none" stroke={colors.parent} />
+        <text x={xOf(carrier.x) + 8} y={yOf(carrier.y) + 4} className="map-label">carrier</text>
         {comparison?.map((row) =>
           row.result.landing ? (
             <circle key={row.id} cx={xOf(row.result.landing.position.x)} cy={yOf(row.result.landing.position.y)} r="3.5" fill={colors.air}>

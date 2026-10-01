@@ -36,7 +36,7 @@ export const presets: Preset[] = [
   {
     id: 'small-glider',
     name: 'Small Glider',
-    summary: 'Point-mass glider with lift and bank steering. Coefficients are user assumptions, not CFD.',
+    summary: 'Passive glider. Lift and drag come from the wing assumptions. No steering corrections.',
     apply: () => {
       const scenario = base()
       scenario.name = 'Small Glider'
@@ -51,9 +51,8 @@ export const presets: Preset[] = [
       scenario.object.length = 0.8
       scenario.object.width = 1.6
       scenario.object.height = 0.12
-      scenario.control.actuator = 'bank'
-      scenario.control.enabled = true
-      scenario.control.maxBankDeg = 30
+      scenario.control.actuator = 'none'
+      scenario.control.enabled = false
       scenario.wind.speed = 4
       return scenario
     },
