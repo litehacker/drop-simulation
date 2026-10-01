@@ -65,14 +65,24 @@ main { min-height: 0; display: grid; grid-template-rows: minmax(280px, 1.25fr) a
 .config { border-right: 1px solid var(--line); }
 .readout { border-left: 1px solid var(--line); }
 .panel-scroll { overflow: auto; padding: 12px 14px 28px; }
-.tabs { display: flex; gap: 4px; padding: 8px; overflow: auto; border-bottom: 1px solid var(--line); }
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+}
 .tab, .chip {
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 5px 8px;
   white-space: nowrap;
+}
+.tab {
+  flex: 1 1 auto;
+  text-align: center;
 }
 .tab.on, .chip.on { color: var(--ink); border-color: var(--amber); background: #2a2418; }
 
