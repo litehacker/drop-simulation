@@ -90,8 +90,8 @@ export function App() {
               <label className="chip-range">
                 Surface
                 <select value={surfaceStyle} onChange={(event) => setSurfaceStyle(event.target.value as typeof surfaceStyle)}>
+                  <option value="relief">3D terrain</option>
                   <option value="public">Map</option>
-                  <option value="relief">Relief</option>
                   <option value="google">Google</option>
                 </select>
               </label>

@@ -163,7 +163,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   draggingAim: false,
   terrain: null,
   terrainCaption: '',
-  surfaceStyle: 'public',
+  surfaceStyle: 'relief',
   googleMapsKey: '',
   mapCaption: '',
   leftTab: 'scenario',
