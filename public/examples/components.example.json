@@ -1,0 +1,17 @@
+{
+  "components": [
+    {
+      "id": "example-gnss",
+      "manufacturer": "Example Labs",
+      "model": "Position module A",
+      "category": "gnss",
+      "accuracy": 1.2,
+      "accuracyUnit": "m",
+      "updateRateHz": 5,
+      "confidence": "user-defined",
+      "specificationSource": "DropSim example import — not a real product",
+      "sourceDate": "2026-01-01",
+      "userNotes": "Replace this file with values copied from a datasheet you are allowed to use."
+    }
+  ]
+}
