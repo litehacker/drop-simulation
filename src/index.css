@@ -158,6 +158,21 @@ input[type="checkbox"] { accent-color: var(--amber); }
 
 .stage { position: relative; min-height: 0; background: #101614; }
 .stage canvas { display: block; }
+.surface-status {
+  position: absolute;
+  left: 10px;
+  top: 86px;
+  z-index: 2;
+  max-width: 460px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #1c3324;
+  color: #d7f5c8;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.surface-status.bad { background: #3a2220; color: #ffd0c8; }
 .stage-tools {
   position: absolute;
   left: 10px;

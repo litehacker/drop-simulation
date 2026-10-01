@@ -4,7 +4,7 @@ export type SurfaceStyle = 'relief' | 'public' | 'google'
 
 export const PUBLIC_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 export const PUBLIC_MAP_CREDIT = 'Map: OpenFreeMap © OpenMapTiles © OpenStreetMap.'
-export const GOOGLE_MAP_CREDIT = 'Map: Google Maps hybrid. Your key is used only in this browser session and is not saved.'
+export const GOOGLE_MAP_CREDIT = 'Google satellite is on the terrain. Imagery © Google. The key stays in this session and is not saved.'
 
 export interface MercatorFrame {
   zoom: number
@@ -57,16 +57,27 @@ export function uvInFrame(longitudeDeg: number, latitudeDeg: number, frame: Merc
   return { u, v }
 }
 
-export function googleHybridUrl(latitudeDeg: number, longitudeDeg: number, zoom: number, apiKey: string): string {
-  const params = new URLSearchParams({
-    center: `${latitudeDeg},${longitudeDeg}`,
-    zoom: String(zoom),
-    size: '640x640',
-    scale: '2',
-    maptype: 'hybrid',
-    key: apiKey,
-  })
-  return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`
+export function googleSessionUrl(apiKey: string): string {
+  return `https://tile.googleapis.com/v1/createSession?key=${encodeURIComponent(apiKey)}`
+}
+
+export function googleTileUrl(zoom: number, x: number, y: number, session: string, apiKey: string): string {
+  const params = new URLSearchParams({ session, key: apiKey })
+  return `https://tile.googleapis.com/v1/2dtiles/${zoom}/${x}/${y}?${params.toString()}`
+}
+
+export function messageFromGoogleError(status: number, payload: unknown): string {
+  const message =
+    payload && typeof payload === 'object' && 'error' in payload
+      ? (payload as { error?: { message?: string } }).error?.message
+      : undefined
+  if (status === 400 && /api key not valid/i.test(message ?? '')) {
+    return 'Google rejected this key. Paste the whole key, with the Map Tiles API enabled.'
+  }
+  if (status === 403) {
+    return 'Google refused this key. Enable the Map Tiles API, and allow this site under the key’s HTTP referrer restriction.'
+  }
+  return message ? `Google imagery did not load. ${message}` : `Google imagery did not load (${status}).`
 }
 
 /** Geographic coverage of a square map image. `cssPixels` is the map's CSS size, not the drawing-buffer size. */

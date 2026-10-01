@@ -2,23 +2,24 @@ import { useEffect, useMemo, useState } from 'react'
 import { setWorkerUrl } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import * as THREE from 'three'
-
-setWorkerUrl(maplibreWorkerUrl)
 import { enuToThree } from '../coordinates/enu'
 import { enuToGeodetic } from '../integrations/geodesy'
 import { ELEVATION_ATTRIBUTION, fetchTerrain, type TerrainPatch } from '../integrations/elevation'
 import {
   GOOGLE_MAP_CREDIT,
   PUBLIC_MAP_CREDIT,
-  googleHybridUrl,
-  googleImageFrame,
-  googleZoomForPatch,
+  frameForPatch,
+  googleSessionUrl,
+  googleTileUrl,
+  messageFromGoogleError,
   PUBLIC_MAP_STYLE,
   publicMapFrame,
   uvInFrame,
   type MercatorFrame,
 } from '../integrations/mapDrape'
 import { useSimStore } from '../store/useSimStore'
+
+setWorkerUrl(maplibreWorkerUrl)
 
 function shade(height: number, low: number, high: number): [number, number, number] {
   const span = high - low
@@ -122,7 +123,7 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
   )
   const frame = useMemo(() => {
     if (surfaceStyle === 'relief' || !Number.isFinite(latitude)) return null
-    if (surfaceStyle === 'google' && googleMapsKey.trim()) return googleImageFrame(latitude, longitude, googleZoomForPatch(origin, width))
+    if (surfaceStyle === 'google' && googleMapsKey.trim()) return frameForPatch(origin, width)
     return publicMapFrame(origin, width)
   }, [surfaceStyle, googleMapsKey, latitude, longitude, origin, width])
   const geometry = useMemo(() => {
@@ -173,8 +174,8 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
     }
     let cancel = false
     const google = surfaceStyle === 'google' && googleMapsKey.trim().length > 0
-    setMapCaption(google ? 'Loading Google map…' : 'Loading map…')
-    const load = google ? loadGoogle(latitude, longitude, frame, googleMapsKey.trim()) : loadOpenFreeMap(origin, frame)
+    setMapCaption(google ? 'Loading Google satellite onto the terrain…' : 'Loading map…')
+    const load = google ? loadGoogle(frame, googleMapsKey.trim()) : loadOpenFreeMap(origin, frame)
     load
       .then((texture) => {
         if (cancel) {
@@ -186,7 +187,7 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
           return texture
         })
         const needsKey = surfaceStyle === 'google' && googleMapsKey.trim().length === 0
-        setMapCaption(needsKey ? `Paste a Google Maps key to drape Google hybrid imagery. ${PUBLIC_MAP_CREDIT}` : google ? GOOGLE_MAP_CREDIT : PUBLIC_MAP_CREDIT)
+        setMapCaption(needsKey ? `Choose Google, paste a Map Tiles API key, and the hills switch to Google satellite. ${PUBLIC_MAP_CREDIT}` : google ? GOOGLE_MAP_CREDIT : PUBLIC_MAP_CREDIT)
       })
       .catch((error: unknown) => {
         if (cancel) return
@@ -281,9 +282,32 @@ async function loadOpenFreeMap(origin: { latitudeDeg: number; longitudeDeg: numb
   }
 }
 
-async function loadGoogle(latitude: number, longitude: number, frame: MercatorFrame, apiKey: string): Promise<THREE.Texture> {
-  const image = await loadImage(googleHybridUrl(latitude, longitude, frame.zoom, apiKey))
-  const texture = new THREE.Texture(image)
+async function loadGoogle(frame: MercatorFrame, apiKey: string): Promise<THREE.Texture> {
+  const sessionResponse = await fetch(googleSessionUrl(apiKey), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mapType: 'satellite', language: 'en-US', region: 'US' }),
+  })
+  const sessionPayload: unknown = await sessionResponse.json().catch(() => null)
+  if (!sessionResponse.ok) throw new Error(messageFromGoogleError(sessionResponse.status, sessionPayload))
+  const session = (sessionPayload as { session?: string } | null)?.session
+  if (!session) throw new Error('Google did not return a map session.')
+  const columns = frame.x1 - frame.x0
+  const rows = frame.y1 - frame.y0
+  const canvas = document.createElement('canvas')
+  canvas.width = columns * 256
+  canvas.height = rows * 256
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('The map canvas is not available.')
+  await Promise.all(
+    Array.from({ length: columns }, (_, column) =>
+      Array.from({ length: rows }, async (_, row) => {
+        const image = await loadImage(googleTileUrl(frame.zoom, frame.x0 + column, frame.y0 + row, session, apiKey))
+        context.drawImage(image, column * 256, row * 256)
+      }),
+    ).flat(),
+  )
+  const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.needsUpdate = true
   return texture
