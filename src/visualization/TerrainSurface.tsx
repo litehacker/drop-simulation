@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { setWorkerUrl } from 'maplibre-gl'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+import maplibreWorkerUrl from './maplibre.worker?worker&url'
 import * as THREE from 'three'
 import { enuToThree } from '../coordinates/enu'
 import { enuToGeodetic } from '../integrations/geodesy'
@@ -167,13 +167,18 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
   }, [latitude, longitude, widthM, setTerrain])
 
   useEffect(() => {
-    if (!frame || surfaceStyle === 'relief') {
+    if (surfaceStyle === 'relief' || !frame) {
       setMapTexture(null)
       setMapCaption('')
       return
     }
+    if (surfaceStyle === 'google' && googleMapsKey.trim().length === 0) {
+      setMapTexture(null)
+      setMapCaption('Paste a Map Tiles API key. The 3D terrain stays until Google accepts it.')
+      return
+    }
     let cancel = false
-    const google = surfaceStyle === 'google' && googleMapsKey.trim().length > 0
+    const google = surfaceStyle === 'google'
     setMapCaption(google ? 'Loading Google satellite onto the terrain…' : 'Loading map…')
     const load = google ? loadGoogle(frame, googleMapsKey.trim()) : loadOpenFreeMap(origin, frame)
     load
@@ -209,8 +214,12 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
   if (!geometry) return null
   return (
     <group>
-      <mesh geometry={geometry.surface}>
-        <meshStandardMaterial map={mapTexture ?? undefined} vertexColors={!mapTexture} roughness={0.9} metalness={0} />
+      <mesh geometry={geometry.surface} raycast={() => null}>
+        {mapTexture ? (
+          <meshBasicMaterial map={mapTexture} toneMapped={false} />
+        ) : (
+          <meshStandardMaterial vertexColors roughness={0.86} metalness={0} />
+        )}
       </mesh>
       {!mapTexture && (
         <lineSegments geometry={geometry.relief}>
