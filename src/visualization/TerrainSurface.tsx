@@ -1,7 +1,23 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { setWorkerUrl } from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import * as THREE from 'three'
+
+setWorkerUrl(maplibreWorkerUrl)
 import { enuToThree } from '../coordinates/enu'
+import { enuToGeodetic } from '../integrations/geodesy'
 import { ELEVATION_ATTRIBUTION, fetchTerrain, type TerrainPatch } from '../integrations/elevation'
+import {
+  GOOGLE_MAP_CREDIT,
+  PUBLIC_MAP_CREDIT,
+  googleHybridUrl,
+  googleImageFrame,
+  googleZoomForPatch,
+  PUBLIC_MAP_STYLE,
+  publicMapFrame,
+  uvInFrame,
+  type MercatorFrame,
+} from '../integrations/mapDrape'
 import { useSimStore } from '../store/useSimStore'
 
 function shade(height: number, low: number, high: number): [number, number, number] {
@@ -21,10 +37,14 @@ function shade(height: number, low: number, high: number): [number, number, numb
   return [a[0] + (b[0] - a[0]) * mix, a[1] + (b[1] - a[1]) * mix, a[2] + (b[2] - a[2]) * mix]
 }
 
-function buildGeometry(patch: TerrainPatch): { surface: THREE.BufferGeometry; relief: THREE.BufferGeometry } {
+function buildGeometry(
+  patch: TerrainPatch,
+  uvAt?: (east: number, north: number) => { u: number; v: number },
+): { surface: THREE.BufferGeometry; relief: THREE.BufferGeometry } {
   const { columns, rows, widthM, heights } = patch
   const positions = new Float32Array(columns * rows * 3)
   const colors = new Float32Array(columns * rows * 3)
+  const uvs = new Float32Array(columns * rows * 2)
   let low = Infinity
   let high = -Infinity
   for (const height of heights) {
@@ -45,6 +65,9 @@ function buildGeometry(patch: TerrainPatch): { surface: THREE.BufferGeometry; re
       colors[index * 3] = r
       colors[index * 3 + 1] = g
       colors[index * 3 + 2] = b
+      const uv = uvAt ? uvAt(east, north) : { u: column / (columns - 1), v: row / (rows - 1) }
+      uvs[index * 2] = uv.u
+      uvs[index * 2 + 1] = uv.v
     }
   }
   const indices: number[] = []
@@ -60,6 +83,7 @@ function buildGeometry(patch: TerrainPatch): { surface: THREE.BufferGeometry; re
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2))
   geometry.setIndex(indices)
   geometry.computeVertexNormals()
   const relief: number[] = []
@@ -87,7 +111,30 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
   const longitude = useSimStore((state) => state.scenario.origin.longitudeDeg)
   const terrain = useSimStore((state) => state.terrain)
   const setTerrain = useSimStore((state) => state.setTerrain)
-  const geometry = useMemo(() => (terrain ? buildGeometry(terrain) : null), [terrain])
+  const surfaceStyle = useSimStore((state) => state.surfaceStyle)
+  const googleMapsKey = useSimStore((state) => state.googleMapsKey)
+  const setMapCaption = useSimStore((state) => state.setMapCaption)
+  const [mapTexture, setMapTexture] = useState<THREE.Texture | null>(null)
+  const width = Math.max(1800, Math.min(8000, Math.round(widthM / 400) * 400))
+  const origin = useMemo(
+    () => ({ latitudeDeg: latitude, longitudeDeg: longitude, groundElevationM: 0, label: '' }),
+    [latitude, longitude],
+  )
+  const frame = useMemo(() => {
+    if (surfaceStyle === 'relief' || !Number.isFinite(latitude)) return null
+    if (surfaceStyle === 'google' && googleMapsKey.trim()) return googleImageFrame(latitude, longitude, googleZoomForPatch(origin, width))
+    return publicMapFrame(origin, width)
+  }, [surfaceStyle, googleMapsKey, latitude, longitude, origin, width])
+  const geometry = useMemo(() => {
+    if (!terrain) return null
+    const uvAt = frame
+      ? (east: number, north: number) => {
+          const geo = enuToGeodetic(origin, east, north, 0)
+          return uvInFrame(geo.longitudeDeg, geo.latitudeDeg, frame)
+        }
+      : undefined
+    return buildGeometry(terrain, uvAt)
+  }, [terrain, frame, origin])
 
   useEffect(() => {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
@@ -118,20 +165,126 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
     }
   }, [latitude, longitude, widthM, setTerrain])
 
+  useEffect(() => {
+    if (!frame || surfaceStyle === 'relief') {
+      setMapTexture(null)
+      setMapCaption('')
+      return
+    }
+    let cancel = false
+    const google = surfaceStyle === 'google' && googleMapsKey.trim().length > 0
+    setMapCaption(google ? 'Loading Google map…' : 'Loading map…')
+    const load = google ? loadGoogle(latitude, longitude, frame, googleMapsKey.trim()) : loadOpenFreeMap(origin, frame)
+    load
+      .then((texture) => {
+        if (cancel) {
+          texture.dispose()
+          return
+        }
+        setMapTexture((previous) => {
+          previous?.dispose()
+          return texture
+        })
+        const needsKey = surfaceStyle === 'google' && googleMapsKey.trim().length === 0
+        setMapCaption(needsKey ? `Paste a Google Maps key to drape Google hybrid imagery. ${PUBLIC_MAP_CREDIT}` : google ? GOOGLE_MAP_CREDIT : PUBLIC_MAP_CREDIT)
+      })
+      .catch((error: unknown) => {
+        if (cancel) return
+        setMapTexture(null)
+        setMapCaption(error instanceof Error ? error.message : 'The map image could not be loaded.')
+      })
+    return () => {
+      cancel = true
+    }
+  }, [frame, surfaceStyle, googleMapsKey, latitude, longitude, origin, setMapCaption])
+
   useEffect(() => () => {
     geometry?.surface.dispose()
     geometry?.relief.dispose()
   }, [geometry])
 
+  useEffect(() => () => mapTexture?.dispose(), [mapTexture])
+
   if (!geometry) return null
   return (
     <group>
       <mesh geometry={geometry.surface}>
-        <meshStandardMaterial vertexColors roughness={0.86} metalness={0} />
+        <meshStandardMaterial map={mapTexture ?? undefined} vertexColors={!mapTexture} roughness={0.9} metalness={0} />
       </mesh>
-      <lineSegments geometry={geometry.relief}>
-        <lineBasicMaterial color="#e7f2df" transparent opacity={0.28} />
-      </lineSegments>
+      {!mapTexture && (
+        <lineSegments geometry={geometry.relief}>
+          <lineBasicMaterial color="#e7f2df" transparent opacity={0.28} />
+        </lineSegments>
+      )}
     </group>
   )
+}
+
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('A map image failed to load. Check the key and that the Maps Static API is enabled.'))
+    image.src = url
+  })
+}
+
+async function loadOpenFreeMap(origin: { latitudeDeg: number; longitudeDeg: number; groundElevationM: number; label: string }, frame: MercatorFrame): Promise<THREE.Texture> {
+  const maplibre = await import('maplibre-gl')
+  const container = document.createElement('div')
+  container.style.width = '1024px'
+  container.style.height = '1024px'
+  container.style.position = 'fixed'
+  container.style.left = '-4000px'
+  container.style.top = '0'
+  document.body.appendChild(container)
+  const map = new maplibre.Map({
+    container,
+    style: PUBLIC_MAP_STYLE,
+    center: [origin.longitudeDeg, origin.latitudeDeg],
+    zoom: frame.zoom,
+    interactive: false,
+    attributionControl: false,
+    canvasContextAttributes: { preserveDrawingBuffer: true },
+  })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let detail = ''
+      const timer = window.setTimeout(() => reject(new Error(detail || 'The public map took too long to load.')), 20000)
+      map.on('error', (event) => {
+        const problem = event.error
+        detail = problem && typeof problem === 'object' && 'message' in problem ? String(problem.message) : 'map error'
+      })
+      map.on('load', () => {
+        map.jumpTo({ center: [origin.longitudeDeg, origin.latitudeDeg], zoom: frame.zoom })
+        map.once('idle', () => {
+          window.clearTimeout(timer)
+          resolve()
+        })
+      })
+    })
+    const source = map.getCanvas()
+    const canvas = document.createElement('canvas')
+    canvas.width = source.width
+    canvas.height = source.height
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('The map canvas is not available.')
+    context.drawImage(source, 0, 0)
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.needsUpdate = true
+    return texture
+  } finally {
+    map.remove()
+    container.remove()
+  }
+}
+
+async function loadGoogle(latitude: number, longitude: number, frame: MercatorFrame, apiKey: string): Promise<THREE.Texture> {
+  const image = await loadImage(googleHybridUrl(latitude, longitude, frame.zoom, apiKey))
+  const texture = new THREE.Texture(image)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.needsUpdate = true
+  return texture
 }

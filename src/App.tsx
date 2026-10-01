@@ -30,6 +30,11 @@ export function App() {
   const setVectorScale = useSimStore((state) => state.setVectorScale)
   const cameraMode = useSimStore((state) => state.cameraMode)
   const terrainCaption = useSimStore((state) => state.terrainCaption)
+  const mapCaption = useSimStore((state) => state.mapCaption)
+  const surfaceStyle = useSimStore((state) => state.surfaceStyle)
+  const setSurfaceStyle = useSimStore((state) => state.setSurfaceStyle)
+  const googleMapsKey = useSimStore((state) => state.googleMapsKey)
+  const setGoogleMapsKey = useSimStore((state) => state.setGoogleMapsKey)
   const setCameraMode = useSimStore((state) => state.setCameraMode)
   const end = useSimStore((state) => state.result.samples.at(-1)?.t ?? 0)
   const physicsHz = 1 / scenario.simulation.physicsDt
@@ -82,10 +87,31 @@ export function App() {
                 <input type="range" min={0.3} max={3} step={0.1} value={vectorScale} onChange={(event) => setVectorScale(Number(event.target.value))} />
               </label>
               <ScaleToggle />
+              <label className="chip-range">
+                Surface
+                <select value={surfaceStyle} onChange={(event) => setSurfaceStyle(event.target.value as typeof surfaceStyle)}>
+                  <option value="public">Map</option>
+                  <option value="relief">Relief</option>
+                  <option value="google">Google</option>
+                </select>
+              </label>
+              {surfaceStyle === 'google' && (
+                <label className="chip-range">
+                  Google key
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    placeholder="Maps Static API key"
+                    value={googleMapsKey}
+                    onChange={(event) => setGoogleMapsKey(event.target.value)}
+                  />
+                </label>
+              )}
             </div>
             <p className="stage-note">
               East, North, Up. Arrows are exaggerated so forces and velocities can share the picture. The legend lists the real magnitudes. The object is drawn larger than its physical diameter.
               {terrainCaption ? ` ${terrainCaption}` : ''}
+              {mapCaption ? ` ${mapCaption}` : ''}
             </p>
           </section>
           <div className="playback">
