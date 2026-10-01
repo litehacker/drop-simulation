@@ -109,6 +109,7 @@ describe('release advice', () => {
     expect(Math.abs(advice.releaseEast ?? 99)).toBeLessThan(8)
     expect(advice.horizontalSpeed).toBe(20)
     expect(advice.headingDeg).toBeLessThan(15)
+    expect(advice.predictedMiss).toBeLessThan(2)
   })
 
   it('moves the drop upwind when the wind blows toward the east', () => {
@@ -128,6 +129,7 @@ describe('release advice', () => {
     const advice = suggestDropLocation(scenario)
     expect(advice.reachable).toBe(true)
     expect(advice.releaseEast ?? 0).toBeLessThan(-5)
+    expect(advice.predictedMiss).toBeLessThan(2)
   })
 
   it('releases a glider about one glide before the destination', () => {
@@ -147,6 +149,7 @@ describe('release advice', () => {
     expect(advice.reachable).toBe(true)
     expect(advice.releaseNorth ?? 0).toBeLessThan(-50 * 8 * 0.45)
     expect(advice.releaseNorth ?? 0).toBeGreaterThan(-50 * 8 * 1.5)
-    expect(advice.note).toContain('lift-to-drag')
+    expect(advice.predictedMiss).toBeLessThan(2)
+    expect(advice.note).toContain('center')
   })
 })
