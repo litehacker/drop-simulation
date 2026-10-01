@@ -208,11 +208,11 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
   if (!geometry) return null
   return (
     <group>
-      <mesh geometry={geometry.surface}>
+      <mesh geometry={geometry.surface} raycast={() => null}>
         <meshStandardMaterial map={mapTexture ?? undefined} vertexColors={!mapTexture} roughness={0.9} metalness={0} />
       </mesh>
       {!mapTexture && (
-        <lineSegments geometry={geometry.relief}>
+        <lineSegments geometry={geometry.relief} raycast={() => null}>
           <lineBasicMaterial color="#e7f2df" transparent opacity={0.28} />
         </lineSegments>
       )}
