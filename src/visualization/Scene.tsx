@@ -16,9 +16,11 @@ const FORCE_SCALE = 4
 function Arrow({
   color,
   read,
+  maxVisual,
 }: {
   color: string
   read: (sample: Sample, vectorScale: number) => { origin: Vec3; vector: Vec3 } | null
+  maxVisual: number
 }) {
   const group = useRef<THREE.Group>(null)
   const shaft = useRef<THREE.Mesh>(null)
@@ -38,8 +40,8 @@ function Arrow({
       return
     }
     const magnitude = length(reading.vector)
-    const visual = magnitude * state.vectorScale
-    if (visual < 1.5) {
+    const visual = Math.min(magnitude * state.vectorScale, maxVisual)
+    if (visual < 0.8) {
       node.visible = false
       return
     }
@@ -49,16 +51,16 @@ function Arrow({
     const [dx, dy, dz] = enuToThree(reading.vector)
     direction.set(dx, dy, dz).normalize()
     node.quaternion.setFromUnitVectors(up, direction)
-    const headLength = Math.min(18, visual * 0.22)
-    const shaftLength = Math.max(visual - headLength, 0.5)
-    const thickness = Math.max(4.5, visual * 0.03)
+    const headLength = Math.max(0.4, visual * 0.22)
+    const shaftLength = Math.max(visual - headLength, 0.4)
+    const thickness = Math.min(2.2, Math.max(0.35, visual * 0.035))
     shaft.current.scale.set(thickness, shaftLength, thickness)
     shaft.current.position.y = shaftLength / 2
     head.current.scale.set(thickness * 2.3, headLength, thickness * 2.3)
     head.current.position.y = shaftLength + headLength / 2
     const phase = (clock.elapsedTime % 1.6) / 1.6
     traveler.current.position.y = phase * visual
-    traveler.current.scale.setScalar(Math.max(2.2, thickness * 1.7))
+    traveler.current.scale.setScalar(Math.max(0.45, thickness * 1.4))
   })
 
   return (
@@ -101,6 +103,11 @@ function Movers() {
       object.position.set(x, y, z)
     }
     place(objectRef.current, sample.truePosition)
+    const physical = Math.max(state.scenario.object.diameter, 0.05)
+    const exaggeration = state.displayScale === 'true' ? 1 : Math.max(1, 8 / physical)
+    objectRef.current?.scale.setScalar(exaggeration)
+    estimateRef.current?.scale.setScalar(exaggeration)
+    measuredRef.current?.scale.setScalar(exaggeration)
     place(parentRef.current, sample.parentPosition)
     if (parentRef.current) {
       parentRef.current.rotation.y = (state.scenario.parent.headingDeg * Math.PI) / 180
@@ -126,23 +133,27 @@ function Movers() {
   })
 
   const diameter = useSimStore((state) => state.scenario.object.diameter)
+  const lengthM = useSimStore((state) => state.scenario.object.length)
+  const width = useSimStore((state) => state.scenario.object.width)
+  const height = useSimStore((state) => state.scenario.object.height)
   const shape = useSimStore((state) => state.scenario.object.shape)
-  const display = Math.max(6, diameter * 28)
   return (
     <>
       <group ref={objectRef}>
-        <mesh castShadow>
+        <mesh castShadow scale={shape === 'ellipsoid' ? [width, height, lengthM] : [1, 1, 1]}>
           {shape === 'box' ? (
-            <boxGeometry args={[display * 1.4, display * 0.45, display]} />
+            <boxGeometry args={[width, height, lengthM]} />
           ) : shape === 'cylinder' ? (
-            <cylinderGeometry args={[display * 0.45, display * 0.45, display, 20]} />
+            <cylinderGeometry args={[Math.max(diameter, 0.02) / 2, Math.max(diameter, 0.02) / 2, lengthM, 20]} />
+          ) : shape === 'ellipsoid' ? (
+            <sphereGeometry args={[0.5, 24, 16]} />
           ) : (
-            <sphereGeometry args={[display * 0.5, 28, 20]} />
+            <sphereGeometry args={[Math.max(diameter, 0.02) / 2, 28, 20]} />
           )}
           <meshStandardMaterial color={colors.object} roughness={0.45} metalness={0.05} />
         </mesh>
       </group>
-      <group ref={parentRef} scale={3}>
+      <group ref={parentRef}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[2.4, 2.2, 16]} />
           <meshStandardMaterial color={colors.parent} />
@@ -157,11 +168,11 @@ function Movers() {
         </mesh>
       </group>
       <mesh ref={estimateRef}>
-        <octahedronGeometry args={[5, 0]} />
+        <octahedronGeometry args={[Math.max(diameter, 0.05) * 0.7, 0]} />
         <meshBasicMaterial color={colors.estimated} wireframe />
       </mesh>
       <mesh ref={measuredRef}>
-        <sphereGeometry args={[3.2, 12, 12]} />
+        <sphereGeometry args={[Math.max(diameter, 0.05) * 0.35, 12, 12]} />
         <meshBasicMaterial color={colors.measured} wireframe />
       </mesh>
       <mesh ref={rangeRef} rotation={[-Math.PI / 2, 0, 0]}>
@@ -178,10 +189,7 @@ function CameraRig() {
   const { camera } = useThree()
   useFrame(() => {
     const current = useSimStore.getState().cameraMode
-    if (current === 'orbit' || current === 'free') {
-      camera.up.set(0, 1, 0)
-      return
-    }
+    if (current === 'orbit' || current === 'free') return
     const sample = sampleAt(useSimStore.getState().result.samples, useSimStore.getState().time)
     if (!sample) return
     const [x, y, z] = enuToThree(sample.truePosition)
@@ -201,6 +209,10 @@ function CameraRig() {
       camera.lookAt(x, y, z)
     }
   })
+  useEffect(() => {
+    if (mode === 'top') camera.up.set(0, 0, 1)
+    else camera.up.set(0, 1, 0)
+  }, [mode, camera])
   return <OrbitControls makeDefault enabled={mode === 'orbit' || mode === 'free'} maxPolarAngle={Math.PI * 0.49} />
 }
 
@@ -209,10 +221,11 @@ function FrameTrajectory() {
   const { camera, controls } = useThree()
   const key = samples.length ? `${samples.length}:${samples[samples.length - 1].t.toFixed(2)}` : '0'
   useEffect(() => {
-    if (samples.length < 2) return
+    const frames = useSimStore.getState().result.samples
+    if (frames.length < 2) return
     let minX = Infinity, minY = Infinity, minZ = Infinity
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity
-    for (const sample of samples) {
+    for (const sample of frames) {
       const [x, y, z] = enuToThree(sample.truePosition)
       minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z)
       maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z)
@@ -221,12 +234,16 @@ function FrameTrajectory() {
     const cy = (minY + maxY) / 2
     const cz = (minZ + maxZ) / 2
     const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 80)
-    camera.up.set(0, 1, 0)
-    camera.position.set(cx + span * 0.85, cy + span * 0.45, cz + span * 0.95)
-    camera.lookAt(cx, cy, cz)
+    const persp = camera as THREE.PerspectiveCamera
+    persp.up.set(0, 1, 0)
+    persp.near = Math.max(0.2, span / 500)
+    persp.far = Math.max(1200, span * 14)
+    persp.updateProjectionMatrix()
+    persp.position.set(cx + span * 0.85, cy + span * 0.45, cz + span * 0.95)
+    persp.lookAt(cx, cy, cz)
     const orbit = controls as { target?: { set: (x: number, y: number, z: number) => void } } | null
     orbit?.target?.set(cx, cy, cz)
-  }, [key, camera, controls, samples])
+  }, [key, camera, controls])
   return null
 }
 
@@ -258,23 +275,58 @@ export function SceneContents() {
     return marks
   }, [wind])
 
+  const span = useMemo(() => {
+    if (samples.length === 0) return 200
+    let minX = Infinity
+    let minY = Infinity
+    let minZ = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    let maxZ = -Infinity
+    for (const sample of samples) {
+      const [x, y, z] = enuToThree(sample.truePosition)
+      minX = Math.min(minX, x)
+      minY = Math.min(minY, y)
+      minZ = Math.min(minZ, z)
+      maxX = Math.max(maxX, x)
+      maxY = Math.max(maxY, y)
+      maxZ = Math.max(maxZ, z)
+    }
+    return Math.max(maxX - minX, maxY - minY, maxZ - minZ, 80)
+  }, [samples])
+  const ground = Math.max(240, span * 1.8)
+  const cell = ground > 800 ? 50 : 25
+  const maxArrow = Math.max(18, span * 0.22)
   return (
     <>
       <color attach="background" args={['#101614']} />
-      <fog attach="fog" args={['#101614', 900, 3200]} />
+      <fog attach="fog" args={['#101614', ground * 0.55, ground * 1.4]} />
       <hemisphereLight args={['#d5efe4', '#243028', 0.85]} />
       <directionalLight position={[200, 400, 120]} intensity={1.3} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]}>
+        <planeGeometry args={[ground, ground]} />
+        <meshStandardMaterial color="#15201b" />
+      </mesh>
       <Grid
-        args={[4000, 4000]}
-        cellSize={50}
+        args={[ground, ground]}
+        position={[0, 0.05, 0]}
+        cellSize={cell}
         cellThickness={0.6}
-        sectionSize={250}
-        sectionThickness={1.2}
-        cellColor="#31443a"
-        sectionColor="#567262"
-        fadeDistance={2800}
-        infiniteGrid
+        sectionSize={cell * 5}
+        sectionThickness={1.1}
+        cellColor="#3c5648"
+        sectionColor="#6d8f78"
+        fadeDistance={ground * 0.75}
+        infiniteGrid={false}
       />
+      <mesh position={[20, 0.08, 0]}>
+        <boxGeometry args={[40, 0.15, 0.4]} />
+        <meshBasicMaterial color="#d7e2dc" />
+      </mesh>
+      <mesh position={[0, 0.08, 20]}>
+        <boxGeometry args={[0.4, 0.15, 40]} />
+        <meshBasicMaterial color="#d7e2dc" />
+      </mesh>
       <Line points={truePoints} color={colors.truePath} lineWidth={2} />
       <Line points={estimatedPoints} color={colors.estimated} lineWidth={1.2} dashed dashSize={8} gapSize={5} />
       <Line points={predictedPoints} color={colors.predicted} lineWidth={1.2} dashed dashSize={4} gapSize={6} />
@@ -283,8 +335,8 @@ export function SceneContents() {
         <meshBasicMaterial color={colors.target} transparent opacity={0.85} side={THREE.DoubleSide} />
       </mesh>
       {landing && (
-        <mesh position={enuToThree({ ...landing.position, z: 2 })}>
-          <sphereGeometry args={[4, 16, 16]} />
+        <mesh position={enuToThree({ ...landing.position, z: 0.4 })}>
+          <sphereGeometry args={[1.6, 16, 16]} />
           <meshBasicMaterial color={colors.gravity} />
         </mesh>
       )}
@@ -292,14 +344,14 @@ export function SceneContents() {
         <StaticArrow key={mark.key} origin={mark.origin} vector={mark.vector} />
       ))}
       <Movers />
-      <Arrow color={colors.wind} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.wind, VELOCITY_SCALE) })} />
-      <Arrow color={colors.velocity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.trueVelocity, VELOCITY_SCALE) })} />
-      <Arrow color={colors.ground} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.groundVelocity, VELOCITY_SCALE) })} />
-      <Arrow color={colors.air} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.airRelative, VELOCITY_SCALE) })} />
-      <Arrow color={colors.gravity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.gravity, FORCE_SCALE) })} />
-      <Arrow color={colors.drag} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.drag, FORCE_SCALE) })} />
-      <Arrow color={colors.lift} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.lift, FORCE_SCALE) })} />
-      <Arrow color={colors.correction} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.correction, FORCE_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.wind} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.wind, VELOCITY_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.velocity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.trueVelocity, VELOCITY_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.ground} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.groundVelocity, VELOCITY_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.air} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.airRelative, VELOCITY_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.gravity} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.gravity, FORCE_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.drag} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.drag, FORCE_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.lift} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.lift, FORCE_SCALE) })} />
+      <Arrow maxVisual={maxArrow} color={colors.correction} read={(sample) => ({ origin: sample.truePosition, vector: scaleVec(sample.correction, FORCE_SCALE) })} />
       <CameraRig />
       <FrameTrajectory />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>

@@ -5,6 +5,7 @@ import { componentCategories } from '../catalog/schema'
 import { geometryOf } from '../physics/shapes'
 import { presets } from '../simulation/presets'
 import { useSimStore, type LeftTab } from '../store/useSimStore'
+import { IntegrationsPanel } from './IntegrationsPanel'
 import { ChoiceField, ParamField, TextField, ToggleField } from './ParamField'
 
 const tabs: { id: LeftTab; label: string }[] = [
@@ -15,6 +16,7 @@ const tabs: { id: LeftTab; label: string }[] = [
   { id: 'link', label: 'Link' },
   { id: 'control', label: 'Control' },
   { id: 'catalog', label: 'Catalog' },
+  { id: 'integrations', label: 'Integrations' },
 ]
 
 export function ConfigPanel() {
@@ -248,6 +250,7 @@ export function ConfigPanel() {
         {tab === 'link' && <LinkSection />}
         {tab === 'control' && <ControlSection />}
         {tab === 'catalog' && <CatalogSection />}
+        {tab === 'integrations' && <IntegrationsPanel />}
       </div>
     </div>
   )

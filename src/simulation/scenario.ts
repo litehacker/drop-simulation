@@ -13,6 +13,8 @@ import type { GnssConfig } from '../sensors/gnss'
 import type { ImuConfig } from '../sensors/imu'
 import type { ScalarSensorConfig } from '../sensors/sampling'
 import type { SensorSuite } from '../sensors/bank'
+import type { SiteOrigin } from '../integrations/geodesy'
+import type { WeatherProvenance } from '../integrations/openMeteo'
 
 export const SCENARIO_VERSION = 1 as const
 
@@ -99,6 +101,12 @@ export interface Scenario {
   }
   /** Parameter ids the panel should keep read-only. Values already stored are what the engine uses. */
   locks: string[]
+  /** WGS84 site of the local ENU origin. Flat-earth offsets apply for a few kilometres. */
+  origin: SiteOrigin
+  /** Set when wind and atmosphere were filled from a forecast. Null for hand-entered weather. */
+  weather: WeatherProvenance | null
+  mqttUrl: string
+  mqttTopic: string
 }
 
 function scalarSensor(partial: Partial<ScalarSensorConfig>): ScalarSensorConfig {
@@ -255,6 +263,15 @@ export function createDefaultScenario(): Scenario {
       abortPoint: vec(0, 0, 0),
     },
     locks: [],
+    origin: {
+      latitudeDeg: 45,
+      longitudeDeg: 0,
+      groundElevationM: 0,
+      label: 'Unspecified site',
+    },
+    weather: null,
+    mqttUrl: '',
+    mqttTopic: 'dropsim/state',
   }
 }
 
