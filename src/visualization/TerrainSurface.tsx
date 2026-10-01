@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { setWorkerUrl } from 'maplibre-gl'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+import maplibreWorkerUrl from './maplibre.worker?worker&url'
 import * as THREE from 'three'
 import { enuToThree } from '../coordinates/enu'
 import { enuToGeodetic } from '../integrations/geodesy'
@@ -167,13 +167,18 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
   }, [latitude, longitude, widthM, setTerrain])
 
   useEffect(() => {
-    if (!frame || surfaceStyle === 'relief') {
+    if (surfaceStyle === 'relief' || !frame) {
       setMapTexture(null)
       setMapCaption('')
       return
     }
+    if (surfaceStyle === 'google' && googleMapsKey.trim().length === 0) {
+      setMapTexture(null)
+      setMapCaption('Paste a Map Tiles API key. The 3D terrain stays until Google accepts it.')
+      return
+    }
     let cancel = false
-    const google = surfaceStyle === 'google' && googleMapsKey.trim().length > 0
+    const google = surfaceStyle === 'google'
     setMapCaption(google ? 'Loading Google satellite onto the terrain…' : 'Loading map…')
     const load = google ? loadGoogle(frame, googleMapsKey.trim()) : loadOpenFreeMap(origin, frame)
     load
@@ -210,7 +215,11 @@ export function TerrainSurface({ widthM }: { widthM: number }) {
   return (
     <group>
       <mesh geometry={geometry.surface} raycast={() => null}>
-        <meshStandardMaterial map={mapTexture ?? undefined} vertexColors={!mapTexture} roughness={0.9} metalness={0} />
+        {mapTexture ? (
+          <meshBasicMaterial map={mapTexture} toneMapped={false} fog={false} />
+        ) : (
+          <meshStandardMaterial vertexColors roughness={0.86} metalness={0} />
+        )}
       </mesh>
       {!mapTexture && (
         <lineSegments geometry={geometry.relief} raycast={() => null}>
@@ -256,6 +265,10 @@ async function loadOpenFreeMap(origin: { latitudeDeg: number; longitudeDeg: numb
       map.on('error', (event) => {
         const problem = event.error
         detail = problem && typeof problem === 'object' && 'message' in problem ? String(problem.message) : 'map error'
+        if (/worker failed to load/i.test(detail)) {
+          window.clearTimeout(timer)
+          reject(new Error('The street map worker did not start. Reload and choose Map again.'))
+        }
       })
       map.on('load', () => {
         map.jumpTo({ center: [origin.longitudeDeg, origin.latitudeDeg], zoom: frame.zoom })
