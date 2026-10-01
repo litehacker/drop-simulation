@@ -6,6 +6,8 @@ import { enuToThree, threeToEnu } from '../coordinates/enu'
 import { length, type Vec3 } from '../math/vec3'
 import { meanWind } from '../physics/wind'
 import type { Sample } from '../simulation/engine'
+import { heightAt } from '../integrations/elevation'
+import { TerrainSurface } from './TerrainSurface'
 import { useSimStore, type CameraMode } from '../store/useSimStore'
 import { colors } from './colors'
 import { sampleAt } from './sampleAt'
@@ -189,6 +191,8 @@ function Movers() {
 function AimCircle() {
   const target = useSimStore((state) => state.scenario.control.target)
   const radius = useSimStore((state) => state.scenario.control.targetRadius)
+  const terrain = useSimStore((state) => state.terrain)
+  const lift = terrain ? heightAt(terrain, target.x, target.y) : 0
   const patch = useSimStore((state) => state.patch)
   const setDraggingAim = useSimStore((state) => state.setDraggingAim)
   const { gl } = useThree()
@@ -222,7 +226,7 @@ function AimCircle() {
     }
   }
   return (
-    <group position={enuToThree({ x: target.x, y: target.y, z: 0.7 })}>
+    <group position={enuToThree({ x: target.x, y: target.y, z: 0.7 + lift })}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} onPointerDown={grab} onPointerMove={place} onPointerUp={release}>
         <circleGeometry args={[Math.max(radius, 2), 48]} />
         <meshBasicMaterial color={colors.target} transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
@@ -352,17 +356,22 @@ export function SceneContents() {
   const cell = ground > 800 ? 50 : 25
   const maxArrow = Math.max(18, span * 0.22)
   const visible = useSimStore((state) => state.visibleVectors)
+  const terrain = useSimStore((state) => state.terrain)
+  const terrainWidth = Math.max(ground, 1800)
   return (
     <>
       <color attach="background" args={['#101614']} />
-      <fog attach="fog" args={['#101614', ground * 0.55, ground * 1.4]} />
+      <fog attach="fog" args={terrain ? ['#1a2820', Math.max(900, ground), Math.max(4000, ground * 6)] : ['#101614', ground * 0.55, ground * 1.4]} />
       <hemisphereLight args={['#d5efe4', '#243028', 0.85]} />
       <directionalLight position={[200, 400, 120]} intensity={1.3} />
+      <TerrainSurface widthM={terrainWidth} />
+      {!terrain && (
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]}>
         <planeGeometry args={[ground, ground]} />
         <meshStandardMaterial color="#15201b" />
       </mesh>
-      <Grid
+      )}
+      {!terrain && <Grid
         args={[ground, ground]}
         position={[0, 0.05, 0]}
         cellSize={cell}
@@ -373,7 +382,7 @@ export function SceneContents() {
         sectionColor="#6d8f78"
         fadeDistance={ground * 0.75}
         infiniteGrid={false}
-      />
+      />}
       <mesh position={[20, 0.08, 0]}>
         <boxGeometry args={[40, 0.15, 0.4]} />
         <meshBasicMaterial color="#d7e2dc" />

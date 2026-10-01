@@ -14,6 +14,7 @@ import {
   type MonteCarloResult,
 } from '../simulation/monteCarlo'
 import { duplicateScenario, presets } from '../simulation/presets'
+import type { TerrainPatch } from '../integrations/elevation'
 import { cloneScenario, createDefaultScenario, hydrateScenario, type Scenario } from '../simulation/scenario'
 import { defaultVectorVisibility, type VectorId } from '../visualization/colors'
 
@@ -68,6 +69,8 @@ interface SimState {
   displayScale: 'visible' | 'true'
   cameraMode: CameraMode
   draggingAim: boolean
+  terrain: TerrainPatch | null
+  terrainCaption: string
   leftTab: LeftTab
   rightTab: RightTab
   comparison: ComparisonRow[] | null
@@ -91,6 +94,7 @@ interface SimState {
   setDisplayScale: (scale: 'visible' | 'true') => void
   setCameraMode: (mode: CameraMode) => void
   setDraggingAim: (dragging: boolean) => void
+  setTerrain: (terrain: TerrainPatch | null, caption: string) => void
   setLeftTab: (tab: LeftTab) => void
   setRightTab: (tab: RightTab) => void
   applyPreset: (id: string) => void
@@ -150,6 +154,8 @@ export const useSimStore = create<SimState>((set, get) => ({
   displayScale: 'visible',
   cameraMode: 'orbit',
   draggingAim: false,
+  terrain: null,
+  terrainCaption: '',
   leftTab: 'scenario',
   rightTab: 'now',
   comparison: null,
@@ -191,6 +197,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   setDisplayScale: (displayScale) => set({ displayScale }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   setDraggingAim: (draggingAim) => set({ draggingAim }),
+  setTerrain: (terrain, terrainCaption) => set({ terrain, terrainCaption }),
   setLeftTab: (leftTab) => set({ leftTab }),
   setRightTab: (rightTab) => set({ rightTab }),
   applyPreset: (id) => {

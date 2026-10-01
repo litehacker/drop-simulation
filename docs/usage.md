@@ -114,6 +114,8 @@ Rain changes visibility and, through the factors you set, sensor noise and dropo
 
 **Integrations** sets the map origin: latitude, longitude, and the elevation of the local ground above mean sea level. East and north metres are a flat offset from that point, suitable for a flight of a few kilometres. **Load Open-Meteo forecast** fills wind, temperature, humidity, pressure, precipitation, and elevation from the [Open-Meteo](https://open-meteo.com/) forecast API. Open-Meteo reports the direction the wind comes from; DropSim stores the direction it blows toward. The forecast is attributed to Open-Meteo, CC BY 4.0, and the scenario keeps that note.
 
+The same latitude and longitude load a 3D terrain surface under the flight. Heights come from the [Open-Meteo elevation API](https://open-meteo.com/en/docs/elevation-api), which uses the Copernicus DEM GLO-90 at 90 m resolution. The height at the origin is drawn as the drop surface (0 m). Surrounding ground is the elevation difference from that point, in true metres. Color is stretched across the patch so a gentle slope stays visible. The flight model still lands on the flat local ground; the terrain is the picture of the site, not a change to the impact calculation.
+
 ## Trials
 
 **Trials** repeats the drop with small changes to wind, mass, drag, and release. Choose 10, 100, 1 000, or 10 000 runs, then **Run trials**.
@@ -185,5 +187,6 @@ Treat this file as the product reference.
 - A passive drop stays passive unless the person turns corrections on. Glider range stays tied to lift-to-drag, mass, and wing area as described above.
 - **Suggest drop location** keeps the selected object and the current wind. It moves the release point until the impact estimate is on the center of the landing area, and it aims the heading at the destination. It changes speed only when the current speed cannot put that estimate on the center, and only inside the speed limits. It changes mass only when mass variation is on, and only inside the mass limits.
 - The aim circle can be dragged in the 3D view and on the ground-track map. Dragging moves `control.target` east and north. The radius is unchanged.
+- Terrain in the 3D view is Copernicus DEM GLO-90 via Open-Meteo, relative to the site origin. It does not change the landing calculation.
 - Physics stays East-North-Up, with the Three.js conversion stated here. The physics step stays independent of the display frame rate.
 - Tests that lock a behavior described here should keep that behavior, or this file changes with the test.

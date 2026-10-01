@@ -29,6 +29,7 @@ export function App() {
   const vectorScale = useSimStore((state) => state.vectorScale)
   const setVectorScale = useSimStore((state) => state.setVectorScale)
   const cameraMode = useSimStore((state) => state.cameraMode)
+  const terrainCaption = useSimStore((state) => state.terrainCaption)
   const setCameraMode = useSimStore((state) => state.setCameraMode)
   const end = useSimStore((state) => state.result.samples.at(-1)?.t ?? 0)
   const physicsHz = 1 / scenario.simulation.physicsDt
@@ -82,7 +83,10 @@ export function App() {
               </label>
               <ScaleToggle />
             </div>
-            <p className="stage-note">East, North, Up. Arrows are exaggerated so forces and velocities can share the picture. The legend lists the real magnitudes. The object is drawn larger than its physical diameter.</p>
+            <p className="stage-note">
+              East, North, Up. Arrows are exaggerated so forces and velocities can share the picture. The legend lists the real magnitudes. The object is drawn larger than its physical diameter.
+              {terrainCaption ? ` ${terrainCaption}` : ''}
+            </p>
           </section>
           <div className="playback">
             <button className="btn quiet" onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button>
