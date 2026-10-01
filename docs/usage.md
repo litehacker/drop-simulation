@@ -26,8 +26,8 @@ To place your own drop:
 2. Set the carrier east, north, and altitude. East and north are metres from the local origin. Altitude is height above the ground.
 3. Set the landing area: target east, target north, and radius. A landing inside the radius is a success.
 4. Choose what you drop: **Sphere**, **Compact glider**, **Small glider**, or **Efficient glider**.
-5. Click **Suggest release speed**. The note gives a release speed and a heading.
-6. Click **Use and run** when that release is predicted to land inside the area. Click **Use closest and run** when every searched release still misses. The run then uses that speed and heading, and the flight is given enough time to reach the ground.
+5. Click **Suggest release speed** to keep the carrier where it is and search speed and heading. Or click **Suggest drop location** when the plane is already heading toward the destination: that searches where to release, and the speed that lets this object land in the area. The heading at release points at the destination.
+6. Click **Use and run** when that release is predicted to land inside the area. Click **Use closest and run** when every searched release still misses. The run applies the suggested speed, heading, and, for a drop location, the suggested east and north. The flight is given enough time to reach the ground.
 7. Read **Now**. **Success** means the impact is inside the radius. **Miss** means it is not. The same panel lists east, north, miss, time, and impact speed.
 
 The map marks the carrier and the target ring. North is up and east is right.
@@ -81,6 +81,16 @@ The note is one of three kinds:
 - No landing, when the carrier is already on the ground or the body is still airborne at the end of the search.
 
 Applying the suggestion also turns **Inherit release velocity** on, so the object starts with the carrier’s speed and heading.
+
+## Suggest drop location
+
+Use this when the plane is flying toward the landing area and you need the release point for the object you already selected.
+
+The inbound direction starts as the current release heading. The search places the carrier on that approach, points the heading at the destination, and flies the object with steering off. It shifts the release by the miss, then repeats, so wind drift moves the drop upwind of the ring. It tries the current speed first. Another speed is suggested only when the current speed has no release point inside the area.
+
+The note lists the suggested variables for these circumstances: east, north, altitude, speed, heading, and the object’s mass, drag coefficient, and, for a glider, lift-to-drag and wing area. Those object numbers are the ones in the scenario. The search does not swap the object.
+
+**Use and run** moves the carrier to that east and north, sets the speed and heading, and runs. The map’s carrier mark follows.
 
 ## Environment
 
@@ -163,5 +173,6 @@ Treat this file as the product reference.
 - Remove or rewrite a section when the app no longer does what it says.
 - Keep assumption, estimate, and example distinct. Do not write a radio range, sensor specification, or component number that the scenario or catalog does not contain.
 - A passive drop stays passive unless the person turns corrections on. Glider range stays tied to lift-to-drag, mass, and wing area as described above.
+- **Suggest drop location** keeps the selected object and the current wind. It moves the release point and aims the heading at the destination. It changes speed only when the current speed cannot land inside the area.
 - Physics stays East-North-Up, with the Three.js conversion stated here. The physics step stays independent of the display frame rate.
 - Tests that lock a behavior described here should keep that behavior, or this file changes with the test.
