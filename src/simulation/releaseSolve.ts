@@ -7,10 +7,23 @@ export interface ReleaseAdvice {
   headingDeg: number
   predictedMiss: number
   note: string
+  /** Set when the suggestion is allowed to change mass. */
+  mass?: number
   /** Set when the suggestion moves the release point. Heading then points at the destination. */
   releaseEast?: number
   releaseNorth?: number
   releaseAltitude?: number
+}
+
+export function orderedLimits(min: number, max: number): { min: number; max: number } {
+  const low = Number.isFinite(min) ? min : 0
+  const high = Number.isFinite(max) ? max : low
+  return low <= high ? { min: low, max: high } : { min: high, max: low }
+}
+
+export function clampToLimits(value: number, min: number, max: number): number {
+  const range = orderedLimits(min, max)
+  return Math.min(range.max, Math.max(range.min, value))
 }
 
 interface TrialScore {
@@ -95,7 +108,8 @@ export function suggestRelease(scenario: Scenario): ReleaseAdvice {
   }
 
   let best = { speed: 20, heading: bearingDeg, miss: Number.POSITIVE_INFINITY, downrange: 0, landed: false }
-  const speeds = ratio > 0 ? [8, 14, 22, 32] : [6, 10, 14, 18, 24, 32, 42, 55]
+  const speedRange = orderedLimits(scenario.suggestion.speedMin, scenario.suggestion.speedMax)
+  const speeds = speedChoices(scenario)
   const offsets = [-40, -20, 0, 20, 40]
   for (const speed of speeds) {
     for (const offset of offsets) {
@@ -105,14 +119,14 @@ export function suggestRelease(scenario: Scenario): ReleaseAdvice {
     }
   }
   for (const speed of [best.speed - 3, best.speed - 1, best.speed + 1, best.speed + 3]) {
-    if (speed < 1) continue
+    if (speed < Math.max(1, speedRange.min) || speed > speedRange.max) continue
     const score = scoreRelease(scenario, speed, best.heading)
     if (score.miss < best.miss) best = { speed, heading: best.heading, ...score }
   }
 
   const reachable = best.landed && best.miss <= scenario.control.targetRadius
   const reach = release.z * ratio
-  const note = adviceNote(scenario, best, targetRange, ratio, reach, reachable)
+  const note = `${adviceNote(scenario, best, targetRange, ratio, reach, reachable)}${limitsClause(scenario, best.speed, scenario.object.mass)}`
   return {
     reachable,
     horizontalSpeed: best.speed,
@@ -206,11 +220,42 @@ function polishDropPoint(scenario: Scenario, start: DropPoint): DropPoint {
 }
 
 function speedChoices(scenario: Scenario): number[] {
-  const current = Math.max(1, scenario.parent.horizontalSpeed)
+  const range = orderedLimits(scenario.suggestion.speedMin, scenario.suggestion.speedMax)
+  const current = clampToLimits(Math.max(1, scenario.parent.horizontalSpeed), range.min, Math.max(range.max, range.min))
   const extras = glideRatio(scenario) > 0 ? [8, 14, 22, 32] : [10, 18, 28, 40, 55]
   const unique = [...new Set([current, ...extras].map((speed) => Math.round(speed * 10) / 10))]
+    .filter((speed) => speed >= range.min - 1e-6 && speed <= range.max + 1e-6 && speed >= 1)
+  if (unique.length === 0) unique.push(Math.max(1, current))
   unique.sort((a, b) => Math.abs(a - current) - Math.abs(b - current) || a - b)
   return unique
+}
+
+function massChoices(scenario: Scenario): number[] {
+  const current = scenario.object.mass
+  if (!scenario.suggestion.varyMass) return [current]
+  const range = orderedLimits(scenario.suggestion.massMin, scenario.suggestion.massMax)
+  const low = Math.max(range.min, 0.05)
+  const high = Math.max(range.max, low)
+  const grid = [low, low + (high - low) / 2, high]
+  const unique = [...new Set([clampToLimits(current, low, high), ...grid].map((mass) => Math.round(mass * 100) / 100))]
+    .filter((mass) => mass >= low - 1e-6 && mass <= high + 1e-6)
+  unique.sort((a, b) => Math.abs(a - current) - Math.abs(b - current) || a - b)
+  return unique
+}
+
+function withMass(scenario: Scenario, mass: number): Scenario {
+  if (mass === scenario.object.mass) return scenario
+  const copy = cloneScenario(scenario)
+  copy.object.mass = mass
+  return copy
+}
+
+function limitsClause(scenario: Scenario, speed: number, mass: number): string {
+  const speedRange = orderedLimits(scenario.suggestion.speedMin, scenario.suggestion.speedMax)
+  const speedText = ` Speed stays between ${speedRange.min.toFixed(0)} and ${speedRange.max.toFixed(0)} m/s (this suggestion uses ${speed.toFixed(0)}).`
+  if (!scenario.suggestion.varyMass) return `${speedText} Mass stays ${scenario.object.mass.toFixed(2)} kg.`
+  const massRange = orderedLimits(scenario.suggestion.massMin, scenario.suggestion.massMax)
+  return `${speedText} Mass stays between ${massRange.min.toFixed(2)} and ${massRange.max.toFixed(2)} kg (this suggestion uses ${mass.toFixed(2)}).`
 }
 
 /**
@@ -232,26 +277,49 @@ export function suggestDropLocation(scenario: Scenario): ReleaseAdvice {
     }
   }
 
-  let best = refineDropPoint(scenario, speedChoices(scenario)[0])
-  if (!(best.landed && best.miss <= 1)) {
-    for (const speed of speedChoices(scenario).slice(1)) {
-      const point = refineDropPoint(scenario, speed)
-      if (point.miss < best.miss) best = point
-      if (best.landed && best.miss <= 1) break
+  let best: DropPoint = {
+    east: scenario.parent.position.x,
+    north: scenario.parent.position.y,
+    heading: headingNow,
+    speed: clampToLimits(scenario.parent.horizontalSpeed, scenario.suggestion.speedMin, scenario.suggestion.speedMax),
+    miss: Number.POSITIVE_INFINITY,
+    landed: false,
+  }
+  let mass = scenario.object.mass
+  const consider = (trial: Scenario, point: DropPoint, trialMass: number) => {
+    void trial
+    if (point.miss < best.miss) {
+      best = point
+      mass = trialMass
     }
+  }
+  for (const trialMass of massChoices(scenario)) {
+    const trial = withMass(scenario, trialMass)
+    let point = refineDropPoint(trial, speedChoices(trial)[0])
+    consider(trial, point, trialMass)
+    if (!(point.landed && point.miss <= 1)) {
+      for (const speed of speedChoices(trial).slice(1)) {
+        point = refineDropPoint(trial, speed)
+        consider(trial, point, trialMass)
+        if (best.landed && best.miss <= 1) break
+      }
+    }
+    if (best.landed && best.miss <= 1) break
   }
 
   const east = Math.round(best.east * 10) / 10
   const north = Math.round(best.north * 10) / 10
-  const speed = Math.round(best.speed * 10) / 10
+  const speedRange = orderedLimits(scenario.suggestion.speedMin, scenario.suggestion.speedMax)
+  const speed = clampToLimits(Math.round(best.speed * 10) / 10, speedRange.min, speedRange.max)
   const heading = Math.round(bearingToward(east, north, scenario.control.target.x, scenario.control.target.y, best.heading) * 10) / 10
-  const confirmed = scoreRelease(scenario, speed, heading, { x: east, y: north, z: altitude })
+  const trial = withMass(scenario, mass)
+  const confirmed = scoreRelease(trial, speed, heading, { x: east, y: north, z: altitude })
   const miss = confirmed.landed ? confirmed.miss : best.miss
   const landed = confirmed.landed
   const reachable = landed && miss <= scenario.control.targetRadius
   const place = `Drop at east ${east.toFixed(1)} m, north ${north.toFixed(1)} m, altitude ${altitude.toFixed(0)} m.`
   const flight = ` Head toward the destination at ${speed.toFixed(0)} m/s on heading ${heading.toFixed(1)}°.`
-  const object = ` ${objectClause(scenario)}`
+  const object = ` ${objectClause(trial)}`
   const ring = scenario.control.targetRadius.toFixed(0)
   const outcome = !landed
     ? ' That release did not reach the ground in the search.'
@@ -266,7 +334,8 @@ export function suggestDropLocation(scenario: Scenario): ReleaseAdvice {
     releaseEast: east,
     releaseNorth: north,
     releaseAltitude: altitude,
-    note: `${place}${flight}${object}${outcome} The same seed repeats this search. Applying it turns steering off.`,
+    mass: scenario.suggestion.varyMass ? mass : undefined,
+    note: `${place}${flight}${object}${outcome}${limitsClause(scenario, speed, mass)} The same seed repeats this search. Applying it turns steering off.`,
   }
 }
 

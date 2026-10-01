@@ -67,6 +67,7 @@ interface SimState {
   visibleVectors: Record<VectorId, boolean>
   displayScale: 'visible' | 'true'
   cameraMode: CameraMode
+  draggingAim: boolean
   leftTab: LeftTab
   rightTab: RightTab
   comparison: ComparisonRow[] | null
@@ -89,6 +90,7 @@ interface SimState {
   setAllVectors: (visible: boolean) => void
   setDisplayScale: (scale: 'visible' | 'true') => void
   setCameraMode: (mode: CameraMode) => void
+  setDraggingAim: (dragging: boolean) => void
   setLeftTab: (tab: LeftTab) => void
   setRightTab: (tab: RightTab) => void
   applyPreset: (id: string) => void
@@ -147,6 +149,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   visibleVectors: defaultVectorVisibility(),
   displayScale: 'visible',
   cameraMode: 'orbit',
+  draggingAim: false,
   leftTab: 'scenario',
   rightTab: 'now',
   comparison: null,
@@ -187,6 +190,7 @@ export const useSimStore = create<SimState>((set, get) => ({
     }),
   setDisplayScale: (displayScale) => set({ displayScale }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
+  setDraggingAim: (draggingAim) => set({ draggingAim }),
   setLeftTab: (leftTab) => set({ leftTab }),
   setRightTab: (rightTab) => set({ rightTab }),
   applyPreset: (id) => {

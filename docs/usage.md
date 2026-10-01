@@ -24,7 +24,7 @@ To place your own drop:
 
 1. On **Scenario**, use **Drop plan**.
 2. Set the carrier east, north, and altitude. East and north are metres from the local origin. Altitude is height above the ground.
-3. Set the landing area: target east, target north, and radius. A landing inside the radius is a success.
+3. Set the landing area: target east, target north, and radius. A landing inside the radius is a success. You can also drag the circle in the 3D view or on the ground-track map. The pale dot is the center the suggestion aims at.
 4. Choose what you drop: **Sphere**, **Compact glider**, **Small glider**, or **Efficient glider**.
 5. Click **Suggest release speed** to keep the carrier where it is and search speed and heading. Or click **Suggest drop location** when the plane is already heading toward the destination. That search moves the release until the impact estimate is on the center of the landing area. The heading at release points at the destination.
 6. Click **Use and run** when that release is predicted to land inside the area. Click **Use closest and run** when every searched release still misses. The run applies the suggested speed, heading, and, for a drop location, the suggested east and north. The flight is given enough time to reach the ground.
@@ -91,6 +91,16 @@ The inbound direction starts as the current release heading. The search places t
 The note lists the suggested variables for these circumstances: east, north, altitude, speed, heading, and the object’s mass, drag coefficient, and, for a glider, lift-to-drag and wing area. Those object numbers are the ones in the scenario. The search does not swap the object.
 
 **Use and run** moves the carrier to that east and north, sets the speed and heading, and runs. The map’s carrier mark follows.
+
+## Suggestion limits
+
+Under **Suggestion limits** you set the slowest and fastest release the search may use. It will not suggest a speed outside that range, even if a speed outside it would land closer to the center.
+
+Mass stays at the value on the object unless **Suggestion may change mass** is on. When it is on, the search may pick a mass between the lightest and heaviest bounds to put the estimate on the center, and **Use and run** applies that mass. If you enter the high bound below the low bound, the search uses the two numbers as a range with the smaller one first.
+
+## Moving the aim circle
+
+The destination is a circle on the ground. Its center is the point the drop suggestion tries to hit. Drag the filled circle in the 3D view, or the ring on the east-north map, and the center follows the pointer. The orbit camera stays still while you drag in the 3D view. Release the pointer, then run again to see the new miss.
 
 ## Environment
 
@@ -173,6 +183,7 @@ Treat this file as the product reference.
 - Remove or rewrite a section when the app no longer does what it says.
 - Keep assumption, estimate, and example distinct. Do not write a radio range, sensor specification, or component number that the scenario or catalog does not contain.
 - A passive drop stays passive unless the person turns corrections on. Glider range stays tied to lift-to-drag, mass, and wing area as described above.
-- **Suggest drop location** keeps the selected object and the current wind. It moves the release point until the impact estimate is on the center of the landing area, and it aims the heading at the destination. It changes speed only when the current speed cannot put that estimate on the center.
+- **Suggest drop location** keeps the selected object and the current wind. It moves the release point until the impact estimate is on the center of the landing area, and it aims the heading at the destination. It changes speed only when the current speed cannot put that estimate on the center, and only inside the speed limits. It changes mass only when mass variation is on, and only inside the mass limits.
+- The aim circle can be dragged in the 3D view and on the ground-track map. Dragging moves `control.target` east and north. The radius is unchanged.
 - Physics stays East-North-Up, with the Three.js conversion stated here. The physics step stays independent of the display frame rate.
 - Tests that lock a behavior described here should keep that behavior, or this file changes with the test.

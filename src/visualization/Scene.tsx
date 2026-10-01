@@ -2,7 +2,7 @@ import { Grid, GizmoHelper, GizmoViewport, Line, OrbitControls } from '@react-th
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { enuToThree } from '../coordinates/enu'
+import { enuToThree, threeToEnu } from '../coordinates/enu'
 import { length, type Vec3 } from '../math/vec3'
 import { meanWind } from '../physics/wind'
 import type { Sample } from '../simulation/engine'
@@ -186,6 +186,59 @@ function Movers() {
   )
 }
 
+function AimCircle() {
+  const target = useSimStore((state) => state.scenario.control.target)
+  const radius = useSimStore((state) => state.scenario.control.targetRadius)
+  const patch = useSimStore((state) => state.patch)
+  const setDraggingAim = useSimStore((state) => state.setDraggingAim)
+  const { gl } = useThree()
+  const dragging = useRef(false)
+  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
+  const hit = useMemo(() => new THREE.Vector3(), [])
+  const place = (event: { ray: THREE.Ray; stopPropagation: () => void }) => {
+    if (!dragging.current) return
+    event.stopPropagation()
+    if (!event.ray.intersectPlane(plane, hit)) return
+    const enu = threeToEnu(hit.x, hit.y, hit.z)
+    patch((draft) => {
+      draft.control.target.x = enu.x
+      draft.control.target.y = enu.y
+      draft.control.target.z = 0
+    })
+  }
+  const grab = (event: { stopPropagation: () => void; nativeEvent: PointerEvent }) => {
+    event.stopPropagation()
+    dragging.current = true
+    setDraggingAim(true)
+    gl.domElement.style.cursor = 'grabbing'
+    gl.domElement.setPointerCapture(event.nativeEvent.pointerId)
+  }
+  const release = (event: { nativeEvent: PointerEvent }) => {
+    dragging.current = false
+    setDraggingAim(false)
+    gl.domElement.style.cursor = ''
+    if (gl.domElement.hasPointerCapture(event.nativeEvent.pointerId)) {
+      gl.domElement.releasePointerCapture(event.nativeEvent.pointerId)
+    }
+  }
+  return (
+    <group position={enuToThree({ x: target.x, y: target.y, z: 0.7 })}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} onPointerDown={grab} onPointerMove={place} onPointerUp={release}>
+        <circleGeometry args={[Math.max(radius, 2), 48]} />
+        <meshBasicMaterial color={colors.target} transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[Math.max(radius - Math.min(2, radius * 0.08), 0.4), Math.max(radius, 0.8), 64]} />
+        <meshBasicMaterial color={colors.target} transparent opacity={0.95} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.5, 0]} onPointerDown={grab} onPointerMove={place} onPointerUp={release}>
+        <sphereGeometry args={[Math.max(1.4, Math.min(radius * 0.08, 4)), 16, 16]} />
+        <meshBasicMaterial color="#f7f4ea" />
+      </mesh>
+    </group>
+  )
+}
+
 function CameraRig() {
   const mode = useSimStore((state) => state.cameraMode)
   const { camera } = useThree()
@@ -215,7 +268,8 @@ function CameraRig() {
     if (mode === 'top') camera.up.set(0, 0, 1)
     else camera.up.set(0, 1, 0)
   }, [mode, camera])
-  return <OrbitControls makeDefault enabled={mode === 'orbit' || mode === 'free'} maxPolarAngle={Math.PI * 0.49} />
+  const draggingAim = useSimStore((state) => state.draggingAim)
+  return <OrbitControls makeDefault enabled={(mode === 'orbit' || mode === 'free') && !draggingAim} maxPolarAngle={Math.PI * 0.49} />
 }
 
 function FrameTrajectory() {
@@ -256,8 +310,6 @@ function paths(samples: Sample[], pick: (sample: Sample) => Vec3): [number, numb
 export function SceneContents() {
   const samples = useSimStore((state) => state.result.samples)
   const prediction = useSimStore((state) => state.result.prediction)
-  const target = useSimStore((state) => state.scenario.control.target)
-  const radius = useSimStore((state) => state.scenario.control.targetRadius)
   const wind = useSimStore((state) => state.scenario.wind)
   const landing = useSimStore((state) => state.result.landing)
   const truePoints = useMemo(() => paths(samples, (sample) => sample.truePosition), [samples])
@@ -333,10 +385,7 @@ export function SceneContents() {
       <Line points={truePoints} color={colors.truePath} lineWidth={2} />
       <Line points={estimatedPoints} color={colors.estimated} lineWidth={1.2} dashed dashSize={8} gapSize={5} />
       <Line points={predictedPoints} color={colors.predicted} lineWidth={1.2} dashed dashSize={4} gapSize={6} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={enuToThree({ ...target, z: 0.6 })}>
-        <ringGeometry args={[Math.max(radius - 2, 1), radius, 64]} />
-        <meshBasicMaterial color={colors.target} transparent opacity={0.85} side={THREE.DoubleSide} />
-      </mesh>
+      <AimCircle />
       {landing && (
         <mesh position={enuToThree({ ...landing.position, z: 0.4 })}>
           <sphereGeometry args={[1.6, 16, 16]} />

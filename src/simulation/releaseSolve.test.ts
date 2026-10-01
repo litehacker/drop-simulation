@@ -152,4 +152,43 @@ describe('release advice', () => {
     expect(advice.predictedMiss).toBeLessThan(2)
     expect(advice.note).toContain('center')
   })
+
+  it('keeps the suggested speed inside the limits', () => {
+    const scenario = createDefaultScenario()
+    scenario.object.cd = 0
+    scenario.object.buoyancy = false
+    scenario.wind.speed = 0
+    scenario.wind.turbulenceStd = 0
+    scenario.wind.gustsEnabled = false
+    scenario.parent.position = { x: 0, y: 0, z: 100 }
+    scenario.parent.horizontalSpeed = 40
+    scenario.parent.headingDeg = 0
+    scenario.parent.verticalSpeed = 0
+    scenario.control.target = { x: 0, y: 80, z: 0 }
+    scenario.control.targetRadius = 15
+    scenario.suggestion.speedMin = 18
+    scenario.suggestion.speedMax = 24
+    scenario.simulation.physicsDt = 0.02
+    const advice = suggestDropLocation(scenario)
+    expect(advice.horizontalSpeed).toBeGreaterThanOrEqual(18)
+    expect(advice.horizontalSpeed).toBeLessThanOrEqual(24)
+    expect(advice.mass).toBeUndefined()
+  })
+
+  it('keeps a varied mass inside the mass limits', () => {
+    const scenario = createDefaultScenario()
+    scenario.wind.speed = 0
+    scenario.wind.turbulenceStd = 0
+    scenario.wind.gustsEnabled = false
+    scenario.parent.position = { x: 0, y: 0, z: 80 }
+    scenario.parent.horizontalSpeed = 20
+    scenario.parent.headingDeg = 0
+    scenario.suggestion.varyMass = true
+    scenario.suggestion.massMin = 0.4
+    scenario.suggestion.massMax = 0.9
+    scenario.simulation.physicsDt = 0.05
+    const advice = suggestDropLocation(scenario)
+    expect(advice.mass).toBeGreaterThanOrEqual(0.4)
+    expect(advice.mass).toBeLessThanOrEqual(0.9)
+  })
 })
