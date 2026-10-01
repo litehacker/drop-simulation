@@ -247,6 +247,7 @@ function NotesPanel() {
   return (
     <div className="notes">
       <h2>What is actually modeled</h2>
+      <p>How to use the sandbox is written in <code>docs/usage.md</code> in the project. That file is the public reference for later changes.</p>
       <p><strong>Physically modeled.</strong> Gravity, quadratic drag, wind-relative airspeed, optional lift, optional buoyancy, ideal-gas or ISA density, and fixed-step Runge–Kutta integration.</p>
       <p><strong>User assumption.</strong> Mass, size, Cd, Cl, wind, rain factors, sensor noise, and every radio number you did not import from a source.</p>
       <p><strong>Estimate.</strong> The textbook sphere Cd of 0.47, the turbulence shaping, and the free-space-like signal indicator. None of these are measurements of your hardware.</p>
