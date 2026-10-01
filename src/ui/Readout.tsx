@@ -5,6 +5,7 @@ import { vectorLegend, colors } from '../visualization/colors'
 import { sampleAt } from '../visualization/sampleAt'
 import { Button } from '../components/Button'
 import { formatMetric } from '../simulation/export'
+import { landingsInside, meanOffsetSentence } from '../visualization/trialSummary'
 
 const rightTabs: { id: RightTab; label: string }[] = [
   { id: 'now', label: 'Now' },
@@ -160,6 +161,8 @@ function ComparePanel() {
 
 function TrialsPanel() {
   const request = useSimStore((state) => state.mcRequest)
+  const target = useSimStore((state) => state.scenario.control.target)
+  const radius = useSimStore((state) => state.scenario.control.targetRadius)
   const setMcRequest = useSimStore((state) => state.setMcRequest)
   const start = useSimStore((state) => state.startMonteCarlo)
   const progress = useSimStore((state) => state.mcProgress)
@@ -167,7 +170,7 @@ function TrialsPanel() {
   const error = useSimStore((state) => state.mcError)
   return (
     <div>
-      <p className="calc">Each trial perturbs the inputs below, then repeats the same physics. Export the landing points and judge the spread yourself.</p>
+      <p className="calc">Each trial changes wind, mass, drag, and release a little, then flies the same object again. The map’s yellow dots are those impact points. The numbers below are distances to the center of the landing ring, not distances between the dots.</p>
       <label className="field">
         <span className="field-label">Runs</span>
         <select value={request.runs} onChange={(event) => setMcRequest((draft) => { draft.runs = Number(event.target.value) })}>
@@ -196,15 +199,17 @@ function TrialsPanel() {
       {error && <p className="warn">{error}</p>}
       {result && (
         <>
+          <p className="calc">{meanOffsetSentence(result, target)} {landingsInside(result, target, radius)} of {result.runsLanded} landed inside the ring ({radius.toFixed(0)} m radius).</p>
           <dl className="metrics">
-            <div><dt>Landed</dt><dd>{result.runsLanded} / {result.runsRequested}</dd></div>
-            <div><dt>Mean east</dt><dd>{formatMetric(result.meanEast, 1)} m</dd></div>
-            <div><dt>Mean north</dt><dd>{formatMetric(result.meanNorth, 1)} m</dd></div>
-            <div><dt>Std east</dt><dd>{formatMetric(result.stdEast, 1)} m</dd></div>
-            <div><dt>Std north</dt><dd>{formatMetric(result.stdNorth, 1)} m</dd></div>
-            <div><dt>50th radial</dt><dd>{formatMetric(result.radialP50, 1)} m</dd></div>
-            <div><dt>90th radial</dt><dd>{formatMetric(result.radialP90, 1)} m</dd></div>
+            <div><dt>Reached the ground</dt><dd>{result.runsLanded} / {result.runsRequested}</dd></div>
+            <div><dt>Average east</dt><dd>{formatMetric(result.meanEast, 1)} m</dd></div>
+            <div><dt>Average north</dt><dd>{formatMetric(result.meanNorth, 1)} m</dd></div>
+            <div><dt>East spread</dt><dd>{formatMetric(result.stdEast, 1)} m</dd></div>
+            <div><dt>North spread</dt><dd>{formatMetric(result.stdNorth, 1)} m</dd></div>
+            <div><dt>Half the trials within</dt><dd>{formatMetric(result.radialP50, 1)} m</dd></div>
+            <div><dt>90% of trials within</dt><dd>{formatMetric(result.radialP90, 1)} m</dd></div>
           </dl>
+          <p className="calc">“Within” is distance from the ring center. East and north spread describe how wide the yellow cloud is.</p>
           <Button onClick={downloadMonteCarlo}>Export landing CSV</Button>
         </>
       )}

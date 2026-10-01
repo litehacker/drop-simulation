@@ -184,6 +184,9 @@ input[type="checkbox"] { accent-color: var(--amber); }
   border-bottom: 1px solid var(--line);
 }
 .lower { min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+.map-figure { display: flex; flex-direction: column; min-height: 0; height: 100%; margin: 0; }
+.map-figure .map { flex: 1; min-height: 0; }
+.map-figure figcaption { margin: 0; padding: 8px 10px 10px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .map { width: 100%; height: 100%; display: block; background: #121a16; }
 .map-label { fill: #93a89c; font-size: 11px; }
 .charts { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
