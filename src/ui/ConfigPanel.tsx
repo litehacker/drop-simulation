@@ -5,6 +5,7 @@ import { componentCategories } from '../catalog/schema'
 import { geometryOf } from '../physics/shapes'
 import { presets } from '../simulation/presets'
 import { useSimStore, type LeftTab } from '../store/useSimStore'
+import { DropPlan } from './DropPlan'
 import { IntegrationsPanel } from './IntegrationsPanel'
 import { ChoiceField, ParamField, TextField, ToggleField } from './ParamField'
 
@@ -84,6 +85,7 @@ export function ConfigPanel() {
       <div className="panel-scroll">
         {tab === 'scenario' && (
           <section>
+            <DropPlan />
             <h2>Presets</h2>
             <div className="preset-grid">
               {presets.map((preset) => (
@@ -159,14 +161,21 @@ export function ConfigPanel() {
             <ChoiceField
               label="Aerodynamic model"
               value={scenario.object.aeroMode}
-              tooltip="Ballistic uses drag only. Glider adds lift and bank steering. Custom uses Cd, Cl, and Cm as entered."
+              tooltip="Ballistic uses drag only. A glider is a passive wing: lift-to-drag sets the slope, and it does not steer. Custom uses Cd, Cl, and Cm as entered."
               source="User assumption"
               options={[
                 { value: 'ballistic', label: 'Simple ballistic object' },
                 { value: 'glider', label: 'Simple glider' },
                 { value: 'custom', label: 'Custom aerodynamic coefficients' },
               ]}
-              onChange={(value) => patch((draft) => { draft.object.aeroMode = value as typeof draft.object.aeroMode })}
+              onChange={(value) => patch((draft) => {
+                draft.object.aeroMode = value as typeof draft.object.aeroMode
+                if (value === 'glider') {
+                  draft.object.useLiftToDrag = true
+                  draft.control.enabled = false
+                  draft.control.actuator = 'none'
+                }
+              })}
             />
             <ChoiceField
               label="Shape"
@@ -182,13 +191,20 @@ export function ConfigPanel() {
             {number('width', 'Width', scenario.object.width, 'm', 'Box width or ellipsoid axis.', 'User assumption', (value) => patch((draft) => { draft.object.width = value }), 0.01)}
             {number('height', 'Height', scenario.object.height, 'm', 'Box height or ellipsoid axis.', 'User assumption', (value) => patch((draft) => { draft.object.height = value }), 0.01)}
             {number('cd', 'Cd', scenario.object.cd, '', 'Drag coefficient. 0.47 is a textbook subcritical sphere value, not a measurement of this object.', 'Estimate', (value) => patch((draft) => { draft.object.cd = value }), 0.01)}
-            {number('cl', 'Cl', scenario.object.cl, '', 'Lift coefficient. Ignored for a ballistic object.', 'User assumption', (value) => patch((draft) => { draft.object.cl = value }), 0.01)}
-            {number('cm', 'Cm', scenario.object.cm, '', 'Pitching-moment coefficient. Used only in the custom model.', 'User assumption', (value) => patch((draft) => { draft.object.cm = value }), 0.01)}
-            {number('ld', 'Lift-to-drag', scenario.object.liftToDrag, '', 'If the switch below is on, Cl is set to Cd times this ratio.', 'User assumption', (value) => patch((draft) => { draft.object.liftToDrag = value }), 0.1)}
-            <ToggleField label="Use lift-to-drag for Cl" checked={scenario.object.useLiftToDrag} tooltip="Replaces the Cl field for glider and custom models." source="User assumption" onChange={(checked) => patch((draft) => { draft.object.useLiftToDrag = checked })} />
-            {number('wing', 'Wing area', scenario.object.wingArea ?? geometry.wingArea, 'm²', 'Reference area for lift. Clear the override by matching the geometric area.', 'User assumption', (value) => patch((draft) => { draft.object.wingArea = value }), 0.01)}
+            {scenario.object.aeroMode === 'glider' && (
+              <p className="calc">
+                This glider is passive. Lift-to-drag sets how far it flies: still air carries it about altitude times that ratio.
+                Mass and wing area change whether the wing can hold the slope, and how far wind pushes the landing. A heavier body or a smaller wing drifts less.
+                Steering gain, bank, and pitching moment are not part of this drop.
+              </p>
+            )}
+            {scenario.object.aeroMode === 'glider' && number('ld', 'Lift-to-drag', scenario.object.liftToDrag, '', 'Still-air distance is about altitude times this ratio. 8 from 100 m is about 800 m downrange.', 'User assumption', (value) => patch((draft) => { draft.object.liftToDrag = value; draft.object.useLiftToDrag = true }), 0.1)}
+            {scenario.object.aeroMode === 'custom' && number('cl', 'Cl', scenario.object.cl, '', 'Lift coefficient used when lift-to-drag is off.', 'User assumption', (value) => patch((draft) => { draft.object.cl = value }), 0.01)}
+            {scenario.object.aeroMode === 'custom' && number('cm', 'Cm', scenario.object.cm, '', 'Pitching-moment coefficient for the custom model.', 'User assumption', (value) => patch((draft) => { draft.object.cm = value }), 0.01)}
+            {scenario.object.aeroMode === 'custom' && number('ld', 'Lift-to-drag', scenario.object.liftToDrag, '', 'If the switch below is on, Cl is set to Cd times this ratio.', 'User assumption', (value) => patch((draft) => { draft.object.liftToDrag = value }), 0.1)}
+            {scenario.object.aeroMode === 'custom' && <ToggleField label="Use lift-to-drag for Cl" checked={scenario.object.useLiftToDrag} tooltip="Replaces the Cl field." source="User assumption" onChange={(checked) => patch((draft) => { draft.object.useLiftToDrag = checked })} />}
+            {scenario.object.aeroMode !== 'ballistic' && number('wing', 'Wing area', scenario.object.wingArea ?? geometry.wingArea, 'm²', 'More area lets the wing hold a shallow slope at lower speed. A larger wing also gives the wind more time to push the impact.', 'User assumption', (value) => patch((draft) => { draft.object.wingArea = value }), 0.01)}
             {number('area', 'Reference area', scenario.object.referenceAreaOverride ?? geometry.referenceArea, 'm²', 'Area in the drag equation. Editing this stores an override.', 'User assumption', (value) => patch((draft) => { draft.object.referenceAreaOverride = value }), 0.001)}
-            {number('aspect', 'Aspect ratio', scenario.object.aspectRatio, '', 'Stored with the scenario for later wing models. The MVP lift model does not use it.', 'User assumption', (value) => patch((draft) => { draft.object.aspectRatio = value }), 0.1)}
             {number('volume', 'Custom volume', scenario.object.customVolume, 'm³', 'Used when the shape is custom.', 'User assumption', (value) => patch((draft) => { draft.object.customVolume = value }), 0.001)}
             <ToggleField label="Buoyancy" checked={scenario.object.buoyancy} tooltip="Upward force equal to the weight of displaced air. Off by default." source="Physically modeled" onChange={(checked) => patch((draft) => { draft.object.buoyancy = checked })} />
             <p className="calc">Density {geometry.density.toFixed(2)} kg/m³ · volume {geometry.volume.toFixed(4)} m³ · drag area {geometry.referenceArea.toFixed(4)} m². Density is calculated, not typed.</p>
@@ -336,8 +352,10 @@ function ControlSection() {
   return (
     <section>
       <h2>Landing guidance</h2>
-      <p className="calc">The parent steers toward a ground region using the telemetry it actually receives. This is a delivery or recovery aim point, not a seeker.</p>
-      <ToggleField label="Corrections enabled" checked={scenario.control.enabled} tooltip="When off, the object is open-loop." source="User assumption" onChange={(checked) => patch((draft) => { draft.control.enabled = checked })} />
+      <p className="calc">A plane drop leaves this off. The carrier position, release speed, and landing area on the Scenario tab decide the impact. Turn corrections on only if you want a steering loop after release.</p>
+      <ToggleField label="Corrections enabled" checked={scenario.control.enabled} tooltip="Off for a passive drop. On applies a steering command after release." source="User assumption" onChange={(checked) => patch((draft) => { draft.control.enabled = checked; if (checked && draft.control.actuator === 'none') draft.control.actuator = 'acceleration' })} />
+      {scenario.control.enabled && (
+      <>
       <ChoiceField label="Actuator" value={scenario.control.actuator} tooltip="None logs commands and applies nothing. Acceleration is an abstract force, not sphere aerodynamics. Bank redirects lift on a glider." source="User assumption" options={[{ value: 'none', label: 'None' }, { value: 'acceleration', label: 'Generic acceleration' }, { value: 'bank', label: 'Bank the lift vector' }]} onChange={(value) => patch((draft) => { draft.control.actuator = value as typeof draft.control.actuator })} />
       <ChoiceField label="Guidance law" value={scenario.control.law} tooltip="Trajectory points ground velocity toward the landing area. Heading turns. Velocity changes speed. Abort aims at the abort point." source="User assumption" options={[{ value: 'trajectory', label: 'Trajectory' }, { value: 'heading', label: 'Heading' }, { value: 'velocity', label: 'Velocity' }, { value: 'abort', label: 'Return / abort' }]} onChange={(value) => patch((draft) => { draft.control.law = value as typeof draft.control.law })} />
       {number('interval', 'Correction interval', scenario.control.intervalS, 's', 'How often the parent may send a command. Delivery still depends on the link.', (value) => patch((draft) => { draft.control.intervalS = value }), 0.05)}
@@ -354,6 +372,8 @@ function ControlSection() {
         <button className="btn quiet" onClick={() => snapTarget('calm')}>Target calm-air landing</button>
         <button className="btn quiet" onClick={() => snapTarget('landing')}>Target this landing</button>
       </div>
+      </>
+      )}
     </section>
   )
 }

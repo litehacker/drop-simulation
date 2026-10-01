@@ -2,7 +2,7 @@ import type { Attitude } from '../coordinates/enu'
 import { flightPathAngle, headingOf } from '../coordinates/enu'
 import type { GuidanceCommand } from '../control/correction'
 import { add, length, scale, type Vec3 } from '../math/vec3'
-import { buoyancyForce, liftForce, pitchAcceleration } from '../physics/aero'
+import { buoyancyForce, liftDirection, liftForce, pitchAcceleration } from '../physics/aero'
 import type { AtmosphereSample } from '../physics/atmosphere'
 import { dragForce, relativeAirVelocity } from '../physics/drag'
 import { gravityAcceleration, gravityForce } from '../physics/gravity'
@@ -60,7 +60,20 @@ export function evaluateForces(
   const drag = dragForce(atmosphere.density, cd, geometry.referenceArea, airRelative)
   const bank = scenario.control.actuator === 'bank' ? state.attitude.roll : 0
   const lift =
-    cl === 0 ? { x: 0, y: 0, z: 0 } : liftForce(atmosphere.density, cl, geometry.wingArea, airRelative, bank)
+    scenario.object.aeroMode === 'glider'
+      ? trimmedGliderLift(
+          airRelative,
+          bank,
+          atmosphere.density,
+          cl,
+          Math.max(coefficients.cd, 1e-6),
+          geometry.wingArea,
+          scenario.object.mass,
+          atmosphere.gravity,
+        )
+      : cl === 0
+        ? { x: 0, y: 0, z: 0 }
+        : liftForce(atmosphere.density, cl, geometry.wingArea, airRelative, bank)
   const buoyancy = scenario.object.buoyancy
     ? buoyancyForce(atmosphere.density, geometry.volume, atmosphere.gravity)
     : { x: 0, y: 0, z: 0 }
@@ -100,6 +113,31 @@ export function evaluateForces(
     referenceArea: geometry.referenceArea,
     pitchAcceleration: pitch,
   }
+}
+
+
+/** Passive trim. The wing seeks a descent of atan(1 / lift-to-drag) and cannot hold level flight. */
+function trimmedGliderLift(
+  airRelative: Vec3,
+  bank: number,
+  airDensity: number,
+  liftCoefficient: number,
+  dragCoefficient: number,
+  wingArea: number,
+  mass: number,
+  gravity: number,
+): Vec3 {
+  const direction = liftDirection(airRelative, bank)
+  const speed = length(airRelative)
+  if (speed < 0.2 || wingArea <= 0 || liftCoefficient <= 0 || airDensity <= 0) return { x: 0, y: 0, z: 0 }
+  const horizontal = Math.hypot(airRelative.x, airRelative.y)
+  const theta = Math.atan2(airRelative.z, Math.max(horizontal, 1e-3))
+  const ratio = liftCoefficient / dragCoefficient
+  const thetaEq = -Math.atan(1 / Math.max(ratio, 0.2))
+  const tau = 0.7
+  const desired = mass * gravity * Math.cos(theta) + (mass * speed * (thetaEq - theta)) / tau
+  const available = 0.5 * airDensity * liftCoefficient * wingArea * speed * speed
+  return scale(direction, Math.min(Math.max(0, desired), available))
 }
 
 export function derivativeOf(

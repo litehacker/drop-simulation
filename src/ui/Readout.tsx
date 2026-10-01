@@ -51,14 +51,25 @@ function NowPanel() {
   return (
     <div>
       <h2>Landing</h2>
-      {metrics.landed && metrics.landingPosition ? (
-        <dl className="metrics">
-          <div><dt>East</dt><dd>{metrics.landingPosition.x.toFixed(1)} m</dd></div>
-          <div><dt>North</dt><dd>{metrics.landingPosition.y.toFixed(1)} m</dd></div>
-          <div><dt>Miss</dt><dd>{formatMetric(metrics.horizontalMiss, 1)} m</dd></div>
-          <div><dt>Time</dt><dd>{formatMetric(metrics.landingTime, 2)} s</dd></div>
-          <div><dt>Impact</dt><dd>{formatMetric(metrics.impactSpeed, 1)} m/s</dd></div>
-        </dl>
+      <p className="calc">
+        Carrier at east {scenario.parent.position.x.toFixed(0)} m, north {scenario.parent.position.y.toFixed(0)} m, altitude {scenario.parent.position.z.toFixed(0)} m.
+        Target at east {scenario.control.target.x.toFixed(0)} m, north {scenario.control.target.y.toFixed(0)} m, within {scenario.control.targetRadius.toFixed(0)} m.
+      </p>
+      {metrics.landed && metrics.landingPosition && metrics.horizontalMiss !== null ? (
+        <>
+          <p className={metrics.horizontalMiss <= scenario.control.targetRadius ? 'outcome good' : 'outcome bad'}>
+            {metrics.horizontalMiss <= scenario.control.targetRadius
+              ? `Success. The impact is ${metrics.horizontalMiss.toFixed(1)} m from the target center, inside the ${scenario.control.targetRadius.toFixed(0)} m area.`
+              : `Miss. The impact is ${metrics.horizontalMiss.toFixed(1)} m from the target center. The area only extends ${scenario.control.targetRadius.toFixed(0)} m.`}
+          </p>
+          <dl className="metrics">
+            <div><dt>East</dt><dd>{metrics.landingPosition.x.toFixed(1)} m</dd></div>
+            <div><dt>North</dt><dd>{metrics.landingPosition.y.toFixed(1)} m</dd></div>
+            <div><dt>Miss</dt><dd>{formatMetric(metrics.horizontalMiss, 1)} m</dd></div>
+            <div><dt>Time</dt><dd>{formatMetric(metrics.landingTime, 2)} s</dd></div>
+            <div><dt>Impact</dt><dd>{formatMetric(metrics.impactSpeed, 1)} m/s</dd></div>
+          </dl>
+        </>
       ) : (
         <p className="calc">{result.problems[0] ?? 'The object has not reached the ground in this run.'}</p>
       )}
