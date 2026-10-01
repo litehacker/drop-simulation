@@ -115,6 +115,7 @@ export function IntegrationsPanel() {
         Load Open-Meteo forecast
       </button>
       <p className="calc">{status}</p>
+      <p className="calc">The 3D view builds a terrain surface from this latitude and longitude. The site itself stays the flat drop ground; hills and valleys are the elevation around it.</p>
 
       <h2>Files other tools open</h2>
       <div className="save-row">

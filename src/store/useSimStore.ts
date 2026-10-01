@@ -14,6 +14,8 @@ import {
   type MonteCarloResult,
 } from '../simulation/monteCarlo'
 import { duplicateScenario, presets } from '../simulation/presets'
+import type { TerrainPatch } from '../integrations/elevation'
+import type { SurfaceStyle } from '../integrations/mapDrape'
 import { cloneScenario, createDefaultScenario, hydrateScenario, type Scenario } from '../simulation/scenario'
 import { defaultVectorVisibility, type VectorId } from '../visualization/colors'
 
@@ -68,6 +70,11 @@ interface SimState {
   displayScale: 'visible' | 'true'
   cameraMode: CameraMode
   draggingAim: boolean
+  terrain: TerrainPatch | null
+  terrainCaption: string
+  surfaceStyle: SurfaceStyle
+  googleMapsKey: string
+  mapCaption: string
   leftTab: LeftTab
   rightTab: RightTab
   comparison: ComparisonRow[] | null
@@ -91,6 +98,10 @@ interface SimState {
   setDisplayScale: (scale: 'visible' | 'true') => void
   setCameraMode: (mode: CameraMode) => void
   setDraggingAim: (dragging: boolean) => void
+  setTerrain: (terrain: TerrainPatch | null, caption: string) => void
+  setSurfaceStyle: (style: SurfaceStyle) => void
+  setGoogleMapsKey: (key: string) => void
+  setMapCaption: (caption: string) => void
   setLeftTab: (tab: LeftTab) => void
   setRightTab: (tab: RightTab) => void
   applyPreset: (id: string) => void
@@ -150,6 +161,11 @@ export const useSimStore = create<SimState>((set, get) => ({
   displayScale: 'visible',
   cameraMode: 'orbit',
   draggingAim: false,
+  terrain: null,
+  terrainCaption: '',
+  surfaceStyle: 'relief',
+  googleMapsKey: '',
+  mapCaption: '',
   leftTab: 'scenario',
   rightTab: 'now',
   comparison: null,
@@ -191,6 +207,10 @@ export const useSimStore = create<SimState>((set, get) => ({
   setDisplayScale: (displayScale) => set({ displayScale }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   setDraggingAim: (draggingAim) => set({ draggingAim }),
+  setTerrain: (terrain, terrainCaption) => set({ terrain, terrainCaption }),
+  setSurfaceStyle: (surfaceStyle) => set({ surfaceStyle }),
+  setGoogleMapsKey: (googleMapsKey) => set({ googleMapsKey }),
+  setMapCaption: (mapCaption) => set({ mapCaption }),
   setLeftTab: (leftTab) => set({ leftTab }),
   setRightTab: (rightTab) => set({ rightTab }),
   applyPreset: (id) => {
