@@ -4,7 +4,7 @@ export type SurfaceStyle = 'relief' | 'public' | 'google'
 
 export const PUBLIC_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 export const PUBLIC_MAP_CREDIT = 'Map: OpenFreeMap © OpenMapTiles © OpenStreetMap.'
-export const GOOGLE_MAP_CREDIT = 'Google satellite is on the terrain. Imagery © Google. The key stays in this session and is not saved.'
+export const GOOGLE_MAP_CREDIT = 'Google satellite is on the terrain. Choose Top to see it on the ground. Imagery © Google. The key stays in this session and is not saved.'
 
 export interface MercatorFrame {
   zoom: number
