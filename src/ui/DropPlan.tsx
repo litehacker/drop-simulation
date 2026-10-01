@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { applyDropBody, dropBodies } from '../simulation/dropBodies'
 import { passiveFlightDuration, suggestDropLocation, suggestRelease, type ReleaseAdvice } from '../simulation/releaseSolve'
 import { useSimStore } from '../store/useSimStore'
-import { ParamField } from './ParamField'
+import { ParamField, ToggleField } from './ParamField'
 
 export function DropPlan() {
   const scenario = useSimStore((state) => state.scenario)
@@ -50,7 +50,17 @@ export function DropPlan() {
       <h2>Landing area</h2>
       {number('plan-tx', 'Target east', scenario.control.target.x, 'm', 'Center of the area you are trying to reach.', (value) => patch((draft) => { draft.control.target.x = value }))}
       {number('plan-ty', 'Target north', scenario.control.target.y, 'm', 'Center of the area you are trying to reach.', (value) => patch((draft) => { draft.control.target.y = value }))}
-      {number('plan-tr', 'Radius', scenario.control.targetRadius, 'm', 'A landing inside this radius is a success.', (value) => patch((draft) => { draft.control.targetRadius = value }))}
+      {number('plan-tr', 'Radius', scenario.control.targetRadius, 'm', 'A landing inside this radius is a success. Drag the circle in the view or on the map to move its center.', (value) => patch((draft) => { draft.control.targetRadius = value }))}
+      <h2>Suggestion limits</h2>
+      <p className="calc">
+        The search aims at the center of the circle and will not suggest a speed outside these bounds.
+        Mass stays as it is unless you allow it to change, and then it stays inside its bounds.
+      </p>
+      {number('plan-speed-min', 'Slowest release', scenario.suggestion.speedMin, 'm/s', 'Lowest speed a suggestion may use.', (value) => patch((draft) => { draft.suggestion.speedMin = value }), 0.5)}
+      {number('plan-speed-max', 'Fastest release', scenario.suggestion.speedMax, 'm/s', 'Highest speed a suggestion may use.', (value) => patch((draft) => { draft.suggestion.speedMax = value }), 0.5)}
+      <ToggleField label="Suggestion may change mass" checked={scenario.suggestion.varyMass} tooltip="Off keeps the object's mass. On lets the search pick a mass between the two bounds to hit the center." source="User assumption" onChange={(checked) => patch((draft) => { draft.suggestion.varyMass = checked })} />
+      {number('plan-mass-min', 'Lightest mass', scenario.suggestion.massMin, 'kg', 'Lowest mass a suggestion may use when mass may change.', (value) => patch((draft) => { draft.suggestion.massMin = Math.max(0.05, value) }), 0.05)}
+      {number('plan-mass-max', 'Heaviest mass', scenario.suggestion.massMax, 'kg', 'Highest mass a suggestion may use when mass may change.', (value) => patch((draft) => { draft.suggestion.massMax = Math.max(0.05, value) }), 0.05)}
       <div className="save-row">
         <button
           className="btn quiet"
@@ -90,6 +100,7 @@ export function DropPlan() {
                 }
                 draft.parent.horizontalSpeed = advice.horizontalSpeed
                 draft.parent.headingDeg = advice.headingDeg
+                if (advice.mass !== undefined) draft.object.mass = advice.mass
                 draft.parent.inheritVelocity = true
                 draft.control.enabled = false
                 draft.control.actuator = 'none'

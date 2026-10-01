@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { useSimStore } from '../store/useSimStore'
 import { colors } from './colors'
 import { sampleAt } from './sampleAt'
@@ -37,46 +38,91 @@ export function MapPlot() {
   const pad = 28
   const size = 320
   const scale = (size - pad * 2) / span
-  const xOf = (east: number) => size / 2 + (east - midE) * scale
-  const yOf = (north: number) => size / 2 - (north - midN) * scale
-  const path = (coords: { e: number; n: number }[]) => coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${xOf(point.e)} ${yOf(point.n)}`).join(' ')
   const mean =
     monteCarlo && monteCarlo.meanEast !== null && monteCarlo.meanNorth !== null
       ? { e: monteCarlo.meanEast, n: monteCarlo.meanNorth }
       : null
   const inside = monteCarlo ? landingsInside(monteCarlo, target, radius) : 0
+  const patch = useSimStore((state) => state.patch)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const dragging = useRef(false)
+  const [frozen, setFrozen] = useState<{ midE: number; midN: number; scale: number } | null>(null)
+  const frame = frozen ?? { midE, midN, scale }
+  const frameRef = useRef(frame)
+  frameRef.current = frame
+  const xOfFrame = (east: number) => size / 2 + (east - frame.midE) * frame.scale
+  const yOfFrame = (north: number) => size / 2 - (north - frame.midN) * frame.scale
+  const pathFrame = (coords: { e: number; n: number }[]) => coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${xOfFrame(point.e)} ${yOfFrame(point.n)}`).join(' ')
+  const moveAim = (event: React.PointerEvent<SVGCircleElement>) => {
+    if (!dragging.current || !svgRef.current) return
+    const point = svgRef.current.createSVGPoint()
+    point.x = event.clientX
+    point.y = event.clientY
+    const matrix = svgRef.current.getScreenCTM()
+    if (!matrix) return
+    const local = point.matrixTransform(matrix.inverse())
+    const held = frameRef.current
+    const east = held.midE + (local.x - size / 2) / held.scale
+    const north = held.midN - (local.y - size / 2) / held.scale
+    patch((draft) => {
+      draft.control.target.x = east
+      draft.control.target.y = north
+      draft.control.target.z = 0
+    })
+  }
 
   return (
     <figure className="map-figure">
-      <svg className="map" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="East-north ground track">
+      <svg ref={svgRef} className="map" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="East-north ground track. Drag the target circle to move its center.">
         <rect width={size} height={size} fill="#121a16" />
         <text x="12" y="18" className="map-label">North up · East right</text>
-        <path d={path(prediction.map((point) => ({ e: point.position.x, n: point.position.y })))} stroke={colors.predicted} fill="none" strokeDasharray="4 4" />
-        <path d={path(samples.map((sample) => ({ e: sample.estimatedPosition.x, n: sample.estimatedPosition.y })))} stroke={colors.estimated} fill="none" strokeDasharray="2 3" />
-        <path d={path(samples.map((sample) => ({ e: sample.truePosition.x, n: sample.truePosition.y })))} stroke={colors.truePath} fill="none" strokeWidth="2" />
-        <circle cx={xOf(target.x)} cy={yOf(target.y)} r={Math.max(radius * scale, 3)} fill="none" stroke={colors.target} />
-        <text x={xOf(target.x) + 8} y={yOf(target.y) - 6} className="map-label">target</text>
-        <rect x={xOf(carrier.x) - 5} y={yOf(carrier.y) - 5} width="10" height="10" fill="none" stroke={colors.parent} />
-        <text x={xOf(carrier.x) + 8} y={yOf(carrier.y) + 4} className="map-label">carrier</text>
+        <path d={pathFrame(prediction.map((point) => ({ e: point.position.x, n: point.position.y })))} stroke={colors.predicted} fill="none" strokeDasharray="4 4" />
+        <path d={pathFrame(samples.map((sample) => ({ e: sample.estimatedPosition.x, n: sample.estimatedPosition.y })))} stroke={colors.estimated} fill="none" strokeDasharray="2 3" />
+        <path d={pathFrame(samples.map((sample) => ({ e: sample.truePosition.x, n: sample.truePosition.y })))} stroke={colors.truePath} fill="none" strokeWidth="2" />
+        <circle
+          className="aim-circle"
+          cx={xOfFrame(target.x)}
+          cy={yOfFrame(target.y)}
+          r={Math.max(radius * frame.scale, 8)}
+          fill={colors.target}
+          fillOpacity="0.16"
+          stroke={colors.target}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId)
+            const next = { midE, midN, scale }
+            frameRef.current = next
+            dragging.current = true
+            setFrozen(next)
+          }}
+          onPointerMove={moveAim}
+          onPointerUp={() => {
+            dragging.current = false
+            setFrozen(null)
+          }}
+        />
+        <circle cx={xOfFrame(target.x)} cy={yOfFrame(target.y)} r="3.5" fill="#f7f4ea" />
+        <text x={xOfFrame(target.x) + 8} y={yOfFrame(target.y) - 6} className="map-label">target</text>
+        <rect x={xOfFrame(carrier.x) - 5} y={yOfFrame(carrier.y) - 5} width="10" height="10" fill="none" stroke={colors.parent} />
+        <text x={xOfFrame(carrier.x) + 8} y={yOfFrame(carrier.y) + 4} className="map-label">carrier</text>
         {comparison?.map((row) =>
           row.result.landing ? (
-            <circle key={row.id} cx={xOf(row.result.landing.position.x)} cy={yOf(row.result.landing.position.y)} r="3.5" fill={colors.air}>
+            <circle key={row.id} cx={xOfFrame(row.result.landing.position.x)} cy={yOfFrame(row.result.landing.position.y)} r="3.5" fill={colors.air}>
               <title>{row.name}</title>
             </circle>
           ) : null,
         )}
         {monteCarlo?.landings.map((point) => (
-          <circle key={point.run} cx={xOf(point.east)} cy={yOf(point.north)} r="2.2" fill={colors.correction} opacity="0.75">
+          <circle key={point.run} cx={xOfFrame(point.east)} cy={yOfFrame(point.north)} r="2.2" fill={colors.correction} opacity="0.75">
             <title>{`Trial ${point.run + 1}: ${point.radialError.toFixed(0)} m from the ring center`}</title>
           </circle>
         ))}
         {mean && (
           <g>
-            <line x1={xOf(mean.e) - 6} y1={yOf(mean.n)} x2={xOf(mean.e) + 6} y2={yOf(mean.n)} stroke="#f7f4ea" strokeWidth="1.6" />
-            <line x1={xOf(mean.e)} y1={yOf(mean.n) - 6} x2={xOf(mean.e)} y2={yOf(mean.n) + 6} stroke="#f7f4ea" strokeWidth="1.6" />
+            <line x1={xOfFrame(mean.e) - 6} y1={yOfFrame(mean.n)} x2={xOfFrame(mean.e) + 6} y2={yOfFrame(mean.n)} stroke="#f7f4ea" strokeWidth="1.6" />
+            <line x1={xOfFrame(mean.e)} y1={yOfFrame(mean.n) - 6} x2={xOfFrame(mean.e)} y2={yOfFrame(mean.n) + 6} stroke="#f7f4ea" strokeWidth="1.6" />
           </g>
         )}
-        {current && <circle cx={xOf(current.truePosition.x)} cy={yOf(current.truePosition.y)} r="4.5" fill={colors.object} />}
+        {current && <circle cx={xOfFrame(current.truePosition.x)} cy={yOfFrame(current.truePosition.y)} r="4.5" fill={colors.object} />}
         <g className="map-key">
           <circle cx="18" cy={size - 46} r="3" fill={colors.correction} />
           <text x="26" y={size - 42} className="map-label">trial landing</text>

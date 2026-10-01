@@ -99,6 +99,14 @@ export interface Scenario {
     targetRadius: number
     abortPoint: Vec3
   }
+  /** Bounds the release search may use. Mass changes only when varyMass is on. */
+  suggestion: {
+    speedMin: number
+    speedMax: number
+    massMin: number
+    massMax: number
+    varyMass: boolean
+  }
   /** Parameter ids the panel should keep read-only. Values already stored are what the engine uses. */
   locks: string[]
   /** WGS84 site of the local ENU origin. Flat-earth offsets apply for a few kilometres. */
@@ -262,6 +270,13 @@ export function createDefaultScenario(): Scenario {
       targetRadius: 20,
       abortPoint: vec(0, 0, 0),
     },
+    suggestion: {
+      speedMin: 1,
+      speedMax: 80,
+      massMin: 0.2,
+      massMax: 20,
+      varyMass: false,
+    },
     locks: [],
     origin: {
       latitudeDeg: 45,
@@ -314,6 +329,8 @@ export function validateScenario(scenario: Scenario): string[] {
   if (!(scenario.simulation.duration > 0)) problems.push('Duration must be positive.')
   if (scenario.object.cd < 0) problems.push('Cd cannot be negative.')
   if (scenario.atmosphere.gravity <= 0) problems.push('Gravity must be positive.')
+  if (!(scenario.suggestion.massMin > 0) || !(scenario.suggestion.massMax > 0)) problems.push('Mass limits must be positive.')
+  if (!(scenario.suggestion.speedMax >= 0) || !(scenario.suggestion.speedMin >= 0)) problems.push('Speed limits cannot be negative.')
   if (scenario.parent.position.z < 0) problems.push('Release altitude is below the ground.')
   return problems
 }
