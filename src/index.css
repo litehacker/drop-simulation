@@ -196,14 +196,21 @@ input[type="checkbox"] { accent-color: var(--amber); }
 .metrics dt { color: var(--muted); font-size: 11px; }
 .metrics dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
 .legend { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 4px; }
+.legend-actions { display: flex; align-items: center; gap: 8px; }
+.legend-actions h2 { margin-right: auto; }
+.legend-actions button { background: transparent; border: 0; color: var(--amber); padding: 0; }
 .legend-row {
   position: relative;
+  padding: 2px 0;
+}
+.legend-row label {
   display: grid;
-  grid-template-columns: 12px 1fr auto;
+  grid-template-columns: auto 12px 1fr auto;
   gap: 8px;
   align-items: center;
-  padding: 4px 0;
+  cursor: pointer;
 }
+.legend-row.off { opacity: 0.45; }
 .legend-row i { width: 12px; height: 12px; border-radius: 3px; display: block; }
 .bubble {
   display: none;

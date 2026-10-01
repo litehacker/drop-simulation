@@ -15,6 +15,7 @@ import {
 } from '../simulation/monteCarlo'
 import { duplicateScenario, presets } from '../simulation/presets'
 import { cloneScenario, createDefaultScenario, hydrateScenario, type Scenario } from '../simulation/scenario'
+import { defaultVectorVisibility, type VectorId } from '../visualization/colors'
 
 export type CameraMode = 'orbit' | 'top' | 'side' | 'follow' | 'free'
 export type LeftTab = 'scenario' | 'object' | 'environment' | 'sensors' | 'link' | 'control' | 'catalog' | 'integrations'
@@ -63,6 +64,7 @@ interface SimState {
   playing: boolean
   speed: number
   vectorScale: number
+  visibleVectors: Record<VectorId, boolean>
   displayScale: 'visible' | 'true'
   cameraMode: CameraMode
   leftTab: LeftTab
@@ -83,6 +85,8 @@ interface SimState {
   setPlaying: (playing: boolean) => void
   setSpeed: (speed: number) => void
   setVectorScale: (scale: number) => void
+  toggleVector: (id: VectorId) => void
+  setAllVectors: (visible: boolean) => void
   setDisplayScale: (scale: 'visible' | 'true') => void
   setCameraMode: (mode: CameraMode) => void
   setLeftTab: (tab: LeftTab) => void
@@ -140,6 +144,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   playing: true,
   speed: 1,
   vectorScale: 1,
+  visibleVectors: defaultVectorVisibility(),
   displayScale: 'visible',
   cameraMode: 'orbit',
   leftTab: 'scenario',
@@ -172,6 +177,14 @@ export const useSimStore = create<SimState>((set, get) => ({
   setPlaying: (playing) => set({ playing }),
   setSpeed: (speed) => set({ speed }),
   setVectorScale: (vectorScale) => set({ vectorScale }),
+  toggleVector: (id) =>
+    set({ visibleVectors: { ...get().visibleVectors, [id]: !get().visibleVectors[id] } }),
+  setAllVectors: (visible) =>
+    set({
+      visibleVectors: Object.fromEntries(
+        Object.keys(get().visibleVectors).map((id) => [id, visible]),
+      ) as Record<VectorId, boolean>,
+    }),
   setDisplayScale: (displayScale) => set({ displayScale }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   setLeftTab: (leftTab) => set({ leftTab }),
