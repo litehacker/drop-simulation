@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { Button } from './components/Button'
 import { useSimStore, downloadScenarioFile, downloadTrajectory, type CameraMode } from './store/useSimStore'
 import { ConfigPanel } from './ui/ConfigPanel'
+import { ExportMenu } from './ui/ExportMenu'
 import { ChartsPanel } from './ui/ChartsPanel'
 import { Readout } from './ui/Readout'
 import { MapPlot } from './visualization/MapPlot'
@@ -59,13 +60,14 @@ export function App() {
           <Button onClick={() => void compare()} disabled={comparing}>Compare</Button>
           <Button onClick={downloadScenarioFile}>Export JSON</Button>
           <Button onClick={downloadTrajectory}>Export CSV</Button>
+          <ExportMenu />
         </div>
       </header>
       <div className="workspace">
         <ConfigPanel />
         <main>
           <section className="stage">
-            <Canvas camera={{ position: [280, 240, -420], fov: 42, near: 0.5, far: 8000 }}>
+            <Canvas camera={{ position: [280, 180, -360], fov: 42, near: 1, far: 4000 }} gl={{ logarithmicDepthBuffer: true, antialias: true }}>
               <SceneContents />
             </Canvas>
             <div className="stage-tools">
@@ -78,6 +80,7 @@ export function App() {
                 Arrow scale
                 <input type="range" min={0.3} max={3} step={0.1} value={vectorScale} onChange={(event) => setVectorScale(Number(event.target.value))} />
               </label>
+              <ScaleToggle />
             </div>
             <p className="stage-note">East, North, Up. Arrows are exaggerated so forces and velocities can share the picture. The legend lists the real magnitudes. The object is drawn larger than its physical diameter.</p>
           </section>
@@ -137,4 +140,21 @@ function usePlaybackClock() {
 function trim(value: number): string {
   if (value >= 100) return String(Math.round(value))
   return value.toFixed(value >= 10 ? 0 : 1)
+}
+
+function ScaleToggle() {
+  const mode = useSimStore((state) => state.displayScale)
+  const setDisplayScale = useSimStore((state) => state.setDisplayScale)
+  const diameter = useSimStore((state) => state.scenario.object.diameter)
+  const factor = mode === 'true' ? 1 : Math.max(1, 8 / Math.max(diameter, 0.05))
+  return (
+    <label className="chip-range">
+      Model scale
+      <select value={mode} onChange={(event) => setDisplayScale(event.target.value === 'true' ? 'true' : 'visible')}>
+        <option value="visible">Visible</option>
+        <option value="true">True size</option>
+      </select>
+      <span>{factor === 1 ? '1×' : `${factor.toFixed(0)}×`}</span>
+    </label>
+  )
 }

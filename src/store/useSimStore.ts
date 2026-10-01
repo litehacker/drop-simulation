@@ -17,7 +17,7 @@ import { duplicateScenario, presets } from '../simulation/presets'
 import { cloneScenario, createDefaultScenario, hydrateScenario, type Scenario } from '../simulation/scenario'
 
 export type CameraMode = 'orbit' | 'top' | 'side' | 'follow' | 'free'
-export type LeftTab = 'scenario' | 'object' | 'environment' | 'sensors' | 'link' | 'control' | 'catalog'
+export type LeftTab = 'scenario' | 'object' | 'environment' | 'sensors' | 'link' | 'control' | 'catalog' | 'integrations'
 export type RightTab = 'now' | 'compare' | 'trials' | 'notes'
 
 const LIBRARY_KEY = 'dropsim.scenarios.v1'
@@ -63,6 +63,7 @@ interface SimState {
   playing: boolean
   speed: number
   vectorScale: number
+  displayScale: 'visible' | 'true'
   cameraMode: CameraMode
   leftTab: LeftTab
   rightTab: RightTab
@@ -82,6 +83,7 @@ interface SimState {
   setPlaying: (playing: boolean) => void
   setSpeed: (speed: number) => void
   setVectorScale: (scale: number) => void
+  setDisplayScale: (scale: 'visible' | 'true') => void
   setCameraMode: (mode: CameraMode) => void
   setLeftTab: (tab: LeftTab) => void
   setRightTab: (tab: RightTab) => void
@@ -138,6 +140,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   playing: true,
   speed: 1,
   vectorScale: 1,
+  displayScale: 'visible',
   cameraMode: 'orbit',
   leftTab: 'scenario',
   rightTab: 'now',
@@ -169,6 +172,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   setPlaying: (playing) => set({ playing }),
   setSpeed: (speed) => set({ speed }),
   setVectorScale: (vectorScale) => set({ vectorScale }),
+  setDisplayScale: (displayScale) => set({ displayScale }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   setLeftTab: (leftTab) => set({ leftTab }),
   setRightTab: (rightTab) => set({ rightTab }),
