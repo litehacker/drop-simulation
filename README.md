@@ -1,8 +1,10 @@
 # DropSim
 
-DropSim is a browser sandbox for the flight behavior of a small object after it is released from a parent aircraft. It is meant for generic research, robotics, search and recovery, cargo delivery, and autonomous-flight studies: wind, mass, sensors, telemetry, and landing guidance.
+DropSim is a browser sandbox for the flight behavior of a small object after it is released from a parent aircraft. It is meant for generic research, robotics, search and recovery, cargo delivery, and autonomous-flight studies.
 
 It does not model weapon targeting, payload attack, or explosive guidance.
+
+Public usage, and the reference for later development, is [docs/usage.md](docs/usage.md).
 
 ## Run
 
@@ -14,57 +16,23 @@ pnpm run typecheck
 pnpm run build
 ```
 
-## Coordinates
+## Reference for development
 
-Physics uses a local East-North-Up frame:
+[docs/usage.md](docs/usage.md) describes what a person can do in the app and what the results mean. Further work follows that file.
 
-- X = East
-- Y = North
-- Z = Up
+- A change that adds, removes, or renames a visible behavior updates `docs/usage.md` in the same change.
+- If the app and that file disagree, fix them together. Do not leave a second, quieter description of the same behavior in this README.
+- Numbers stay labeled as physically modeled, user assumption, estimate, calculated, or example profile. Do not invent a radio range, sensor specification, or component value.
 
-Headings are navigation bearings: 0° is north and 90° is east.
-
-The 3D view uses Three.js Y-up. The only conversion is:
-
-- three X = East
-- three Y = Up
-- three Z = North
-
-Do not treat raw Three.js coordinates as physics coordinates.
-
-## What a run does
-
-Parent aircraft (straight kinematic path) → release → gravity, drag, and optional lift → wind through relative air velocity → virtual sensors → estimator → telemetry → optional correction → landing.
-
-Physics, sensor sampling, telemetry, and the display frame rate are separate clocks. A fixed timestep integrates the motion. Playback interpolates stored samples.
-
-Drag magnitude is `0.5 * rho * Cd * A * v_relative²`, opposite the wind-relative velocity `v_object - v_wind`. Wind does nothing to the trajectory unless drag or lift is non-zero.
-
-Rain changes visibility and, if you set the factors, sensor noise and dropout. The rain-drag factor defaults to 0, so rain does not move the object until you explicitly model that.
-
-## Honesty
-
-Every important number is labeled:
-
-- Physically modeled
-- User assumption
-- Estimate
-- Calculated
-- Example profile
-
-Built-in radio profiles are examples. Their nominal range is not a guaranteed link. The component catalog ships names with blank specifications. Empty fields are not applied. Import a datasheet you are allowed to use, or type the values yourself.
-
-The sphere drag coefficient 0.47 is a textbook subcritical value, not a measurement of your object. The Kalman filter predicts with gravity only; drag shows up as estimation error on purpose. The IMU is modeled in the ENU frame so a body-frame estimator can replace it later.
-
-## Layout
+## Code map
 
 `src/physics` integrator and forces  
 `src/sensors` GNSS, IMU, barometer, magnetometer, airspeed, altimeter  
 `src/communications` loss, latency, retries  
 `src/estimation` raw, complementary, and linear Kalman filters  
-`src/control` landing-area guidance  
-`src/simulation` scenario, comparison, Monte Carlo  
+`src/control` optional landing-area guidance  
+`src/simulation` scenario, drop plan, release search, comparison, Monte Carlo  
+`src/integrations` site origin, Open-Meteo, GPX, KML, MAVLink, NMEA, MCAP, serial, MQTT  
 `src/catalog` component schema and JSON/CSV import  
 `src/workers` Monte Carlo worker  
-
-Scenarios save as JSON and include the random seed. Trajectory and Monte Carlo landings export as CSV.
+`docs/usage.md` public usage reference
