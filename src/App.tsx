@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Button } from './components/Button'
 import { useSimStore, downloadScenarioFile, downloadTrajectory, type CameraMode } from './store/useSimStore'
 import { ConfigPanel } from './ui/ConfigPanel'
 import { ExportMenu } from './ui/ExportMenu'
 import { ChartsPanel } from './ui/ChartsPanel'
+import { MotherDroneStatsModal } from './ui/MotherDroneStatsModal'
 import { Readout } from './ui/Readout'
 import { MapPlot } from './visualization/MapPlot'
 import { SceneContents, cameraModeLabel } from './visualization/Scene'
@@ -14,6 +15,7 @@ const cameras: CameraMode[] = ['orbit', 'top', 'side', 'follow', 'free']
 
 export function App() {
   usePlaybackClock()
+  const [motherDroneOpen, setMotherDroneOpen] = useState(false)
   const scenario = useSimStore((state) => state.scenario)
   const dirty = useSimStore((state) => state.dirty)
   const running = useSimStore((state) => state.running)
@@ -64,11 +66,13 @@ export function App() {
         <div className="header-actions">
           <Button tone="primary" onClick={run} disabled={running}>{running ? 'Running' : dirty ? 'Run again' : 'Run'}</Button>
           <Button onClick={() => void compare()} disabled={comparing}>Compare</Button>
+          <Button onClick={() => setMotherDroneOpen(true)}>Mother drone</Button>
           <Button onClick={downloadScenarioFile}>Export JSON</Button>
           <Button onClick={downloadTrajectory}>Export CSV</Button>
           <ExportMenu />
         </div>
       </header>
+      <MotherDroneStatsModal open={motherDroneOpen} onClose={() => setMotherDroneOpen(false)} />
       <div className="workspace">
         <ConfigPanel />
         <main>

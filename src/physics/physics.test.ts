@@ -364,9 +364,44 @@ describe('catalog import', () => {
     )
     expect(imported.components).toHaveLength(1)
     expect(imported.components[0].rangeM).toBeNull()
+    expect(imported.components[0].capacityMah).toBeNull()
+    expect(imported.components[0].maxThrustG).toBeNull()
+    expect(imported.components[0].efficiencyGPerW).toBeNull()
     const applied = applyComponent(createDefaultScenario(), imported.components[0], ['gnss-accuracy', 'radio-range'])
     expect(applied.applied.map((field) => field.field)).toEqual(['gnss-accuracy'])
     expect(applied.skipped[0]).toMatch(/radio-range/)
     expect(applyComponent(createDefaultScenario(), starterCatalog[0], ['mass']).skipped[0]).toMatch(/mass/)
+  })
+
+  it('imports motor and battery propulsion fields when present', () => {
+    const imported = importComponentJson(
+      JSON.stringify([
+        {
+          manufacturer: 'Example Labs',
+          model: 'Motor-1',
+          category: 'motor',
+          weightKg: 0.2,
+          maxThrustG: 1800,
+          efficiencyGPerW: 8.5,
+          confidence: 'user-defined',
+        },
+        {
+          manufacturer: 'Example Labs',
+          model: 'Pack-1',
+          category: 'battery',
+          weightKg: 1.1,
+          capacityMah: 8000,
+          cellCount: 6,
+          voltage: 22.2,
+          confidence: 'user-defined',
+        },
+      ]),
+    )
+    expect(imported.components).toHaveLength(2)
+    expect(imported.components[0].maxThrustG).toBe(1800)
+    expect(imported.components[0].efficiencyGPerW).toBe(8.5)
+    expect(imported.components[1].capacityMah).toBe(8000)
+    expect(imported.components[1].cellCount).toBe(6)
+    expect(imported.components[1].voltageV).toBe(22.2)
   })
 })

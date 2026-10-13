@@ -12,6 +12,33 @@
       "specificationSource": "DropSim example import — not a real product",
       "sourceDate": "2026-01-01",
       "userNotes": "Replace this file with values copied from a datasheet you are allowed to use."
+    },
+    {
+      "id": "example-cruise-motor",
+      "manufacturer": "Example Labs",
+      "model": "Cruise motor A",
+      "category": "motor",
+      "weightKg": null,
+      "maxThrustG": null,
+      "efficiencyGPerW": null,
+      "confidence": "unspecified",
+      "specificationSource": "DropSim example import — fill from your motor+prop thrust table",
+      "sourceDate": "2026-01-01",
+      "userNotes": "Mother-drone flight stats needs mass, max thrust (g), and g/W at the operating thrust row."
+    },
+    {
+      "id": "example-pack",
+      "manufacturer": "Example Labs",
+      "model": "Pack A",
+      "category": "battery",
+      "weightKg": null,
+      "capacityMah": null,
+      "cellCount": null,
+      "voltageV": null,
+      "confidence": "unspecified",
+      "specificationSource": "DropSim example import — fill from the pack label or datasheet",
+      "sourceDate": "2026-01-01",
+      "userNotes": "Mother-drone flight stats needs capacity (mAh), cells, voltage or V/cell, and mass."
     }
   ]
 }
