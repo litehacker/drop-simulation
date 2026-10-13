@@ -34,6 +34,14 @@ export interface ComponentRecord {
   dimensionsM: ComponentDimensions | null
   voltageV: number | null
   currentA: number | null
+  /** Battery nameplate capacity, mAh. Null until imported or typed. */
+  capacityMah: number | null
+  /** Battery series cell count. Null until imported or typed. */
+  cellCount: number | null
+  /** Motor+prop peak static thrust, grams-force. Null until imported or typed. */
+  maxThrustG: number | null
+  /** Motor+prop efficiency at an operating thrust, g/W. Null until imported or typed. */
+  efficiencyGPerW: number | null
   interfaces: string[]
   protocols: string[]
   updateRateHz: number | null

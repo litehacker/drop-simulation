@@ -40,6 +40,7 @@ Header:
 
 - **Run** / **Run again** integrates the current scenario.
 - **Compare** flies the saved comparison rows and lists their misses side by side.
+- **Mother drone** opens a modal endurance calculator for the carrier. It does not change the drop simulation.
 - **Export JSON** saves the scenario, including the random seed.
 - **Export CSV** saves the playback samples.
 - **Share** saves the same samples as GPX, KML, a MAVLink `.tlog`, NMEA, or a Foxglove MCAP file.
@@ -136,7 +137,23 @@ A plane drop leaves corrections off. The carrier, the release, and the shape dec
 
 **Control** is an optional steering loop after release. With corrections off, the tab only explains that and offers the switch. Turning corrections on reveals the actuator (none, a generic acceleration, or banking the lift), the guidance law (trajectory, heading, velocity, or return to an abort point), and the gains and limits. Those commands depend on the telemetry that actually arrives. This is a delivery or recovery aim point, not a seeker.
 
-**Catalog** lists components. The shipped entries have names and blank specifications. Empty fields are not applied. Import a JSON or CSV datasheet you are allowed to use, or type the values yourself.
+**Catalog** lists components. The shipped entries have names and blank specifications. Empty fields are not applied. Import a JSON or CSV datasheet you are allowed to use, or type the values yourself. Motor and battery rows may also carry capacity (mAh), cell count, max thrust (g), and operating-point efficiency (g/W) when you import them.
+
+## Mother-drone flight stats
+
+The header **Mother drone** control opens a modal that estimates carrier flight time from a mass list, 2–3 cruise motors (other counts are allowed), and a battery pack. The drop physics still treats the parent as a kinematic release marker; this form is a separate planning estimate.
+
+Enter every installed mass. Motors and the pack are counted in all-up weight automatically. For each motor, enter mass, peak static thrust, and the thrust-table efficiency (g/W) near the thrust that motor must produce. For the pack, enter capacity, series cell count, volts per cell, mass, and the usable fraction of nameplate energy (0.8 is the usual estimate so the pack is not flown flat).
+
+The calculator works in energy:
+
+1. All-up weight is the sum of included line items, motors, and the battery.
+2. Operating thrust per motor is all-up weight times the thrust share, divided by motor count. Thrust share 1.0 is multirotor hover; a wing-borne cruise is often 0.15–0.40.
+3. Propulsive power is that total thrust (in grams-force) divided by g/W, then divided by ESC efficiency.
+4. Average power multiplies propulsive power by the flight-style factor and adds avionics watts.
+5. Usable watt-hours are capacity (Ah) × nominal pack voltage × usable fraction. Flight time is usable energy divided by average power.
+
+The **What-if** block compares a battery capacity or mass change, and a mass reduction on the rest of the aircraft, against the baseline without rewriting it. Catalog motors and batteries can fill known fields when those values were imported; blank catalog fields stay blank. Every result is labeled calculated, estimate, or user assumption. The form remembers the last values in this browser.
 
 ## Files and live output
 

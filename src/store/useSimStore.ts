@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { starterCatalog } from '../catalog/catalog'
-import { importComponentCsv, importComponentJson } from '../catalog/importer'
+import { importComponentCsv, importComponentJson, normalizeComponent } from '../catalog/importer'
 import type { ComponentRecord } from '../catalog/schema'
 import { commProfiles, profileById } from '../communications/profiles'
 import { applyComponent } from '../simulation/applyComponent'
@@ -47,8 +47,12 @@ function loadCatalog(): ComponentRecord[] {
   try {
     const raw = localStorage.getItem(CATALOG_KEY)
     if (!raw) return starterCatalog
-    const parsed = JSON.parse(raw) as ComponentRecord[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : starterCatalog
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed) || parsed.length === 0) return starterCatalog
+    const normalized = parsed
+      .map((item, index) => normalizeComponent(item, index))
+      .filter((item): item is ComponentRecord => item !== null)
+    return normalized.length > 0 ? normalized : starterCatalog
   } catch {
     return starterCatalog
   }

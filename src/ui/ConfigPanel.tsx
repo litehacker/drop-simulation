@@ -417,6 +417,7 @@ function CatalogSection() {
           <p>{component.specificationSource}</p>
           <p>Confidence: {component.confidence}</p>
           <p>Mass: {component.weightKg ?? 'not loaded'} · accuracy: {component.accuracy ?? 'not loaded'} · rate: {component.updateRateHz ?? 'not loaded'} · range: {component.rangeM ?? 'not loaded'}</p>
+          <p>Voltage: {component.voltageV ?? 'not loaded'} · capacity: {component.capacityMah ?? 'not loaded'} mAh · cells: {component.cellCount ?? 'not loaded'} · max thrust: {component.maxThrustG ?? 'not loaded'} g · efficiency: {component.efficiencyGPerW ?? 'not loaded'} g/W</p>
           <div className="save-row">
             <button className="btn quiet" onClick={() => applyCatalogComponent(component.id, ['mass'])}>Apply mass</button>
             <button className="btn quiet" onClick={() => applyCatalogComponent(component.id, ['gnss-accuracy', 'gnss-rate'])}>Apply GNSS</button>
