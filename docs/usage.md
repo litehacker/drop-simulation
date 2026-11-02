@@ -41,6 +41,7 @@ Header:
 - **Run** / **Run again** integrates the current scenario.
 - **Compare** flies the saved comparison rows and lists their misses side by side.
 - **Mother drone** opens a modal endurance calculator for the carrier. It does not change the drop simulation.
+- **Wing performance** opens a fixed-wing aerodynamic and battery calculator. It does not change the drop simulation.
 - **Export JSON** saves the scenario, including the random seed.
 - **Export CSV** saves the playback samples.
 - **Share** saves the same samples as GPX, KML, a MAVLink `.tlog`, NMEA, or a Foxglove MCAP file.
@@ -155,6 +156,20 @@ The calculator works in energy:
 
 The **What-if** block compares a battery capacity or mass change, and a mass reduction on the rest of the aircraft, against the baseline without rewriting it. Catalog motors and batteries can fill known fields when those values were imported; blank catalog fields stay blank. Every result is labeled calculated, estimate, or user assumption. The form remembers the last values in this browser.
 
+## Fixed-wing performance
+
+The header **Wing performance** control opens a second calculator for a conventional single-propeller airplane. It is an engineering estimate, separate from the drop physics and from the mother-drone energy form.
+
+The preloaded airplane is a 4 kg, 2 m span, 0.25 m average-chord wing, a T-MOTOR MN4120 KV465, a Zeee 6S 6 Ah pack, a T-MOTOR AT75A ESC, a CUAV X7+, and a Turnigy 15×5.5 propeller, with a 90 km/h cruise and phases that add up to 30 minutes. Those equipment names and the motor's 50 A / 1,200 W figures are the published 180-second ratings supplied with the form. The motor bench sheet was taken on T-MOTOR propellers, so it is not treated as a measurement of the Turnigy propeller. The ESC model name is not an amp rating until you type one. CD0 0.035, CLmax 1.4, Oswald efficiency 0.8, propeller efficiency 0.70, and electrical efficiency 0.90 are assumptions.
+
+Editing any input recalculates the sheet immediately. There is no submit step. MTOW is the flight weight; motor mass and battery mass are not added again. Wing area is span × chord unless you choose the entered area as authoritative. Stall speed uses the assumed CLmax. Cruise and climb electrical power divide aerodynamic power by the two efficiency assumptions. Climb power includes drag at the climb speed, not weight × climb rate alone. A phase current is measured, estimated, taken from the aerodynamic model, taken from the climb model, or interpolated from test points. The form does not swap one of those for another, and it does not extrapolate a motor map or treat throttle as linear.
+
+Runway distance is integrated from thrust, drag, rolling resistance, slope, and wind. Without a thrust-versus-airspeed table it can only hold an entered static thrust constant, and that distance stays a low-confidence estimate. Static thrust is never invented from diameter and pitch.
+
+Battery usable percent and reserve are both assumptions. Reserve is held inside the usable fraction. Mission amp-hours are the sum of phase currents, and the mission duration is the sum of the phase minutes. The planning target only warns when that sum differs.
+
+**Reset** restores the preloaded airplane. The form also remembers the last values in this browser. **Save JSON** / **Load JSON** move the configuration. **Export CSV** and **Mission report** download the current results with a source on each line. Graphs cover current, power, and state of charge against mission time, electrical power against speed, and stall, power, climb current, wing loading, or endurance against takeoff weight.
+
 ## Files and live output
 
 From **Share** in the header, or from **Integrations**:
@@ -207,5 +222,6 @@ Treat this file as the product reference.
 - **Suggest drop location** keeps the selected object and the current wind. It moves the release point until the impact estimate is on the center of the landing area, and it aims the heading at the destination. It changes speed only when the current speed cannot put that estimate on the center, and only inside the speed limits. It changes mass only when mass variation is on, and only inside the mass limits.
 - The aim circle can be dragged in the 3D view and on the ground-track map. Dragging moves `control.target` east and north. The radius is unchanged.
 - Terrain in the 3D view is Copernicus DEM GLO-90 via Open-Meteo, relative to the site origin. It does not change the landing calculation. The Map surface is OpenFreeMap (OpenStreetMap). Google satellite tiles are used only when the person supplies a Map Tiles API key, and that key is not stored in the scenario. A missing or refused key leaves the 3D terrain in place and shows the reason. Imagery is unlit so it stays distinct from the relief colors. Top view is how streets and satellite read on the ground.
+- **Wing performance** is a separate fixed-wing estimate. It does not change drop physics. MTOW is not increased by battery or motor mass. Propeller diameter and pitch do not create a thrust number. ESC current stays blank until entered. Motor 50 A and 1,200 W stay 180-second ratings.
 - Physics stays East-North-Up, with the Three.js conversion stated here. The physics step stays independent of the display frame rate.
 - Tests that lock a behavior described here should keep that behavior, or this file changes with the test.
