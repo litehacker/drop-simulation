@@ -331,8 +331,54 @@ th:first-child, td:first-child { text-align: left; }
 .mother-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .mother-drone-modal .outcome ul { margin: 6px 0 0; padding-left: 18px; }
 
+.uav-modal { width: min(1120px, 100%); }
+.uav-modal .modal-header { flex-wrap: wrap; }
+.uav-nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+  background: var(--bg-2);
+}
+.uav-nav button, .mass-table button {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 4px 8px;
+}
+.uav-fields, .uav-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
+.uav-metrics { margin-top: 8px; }
+.uav-chart { height: 240px; }
+.uav-charts { display: grid; gap: 8px; }
+.uav-banner, .warn-red, .warn-yellow, .uav-tip {
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+.uav-banner { display: grid; gap: 4px; }
+.tone-yellow, .warn-yellow { background: #3a3018; color: #ffe7b0; }
+.tone-red, .warn-red { background: #3a1818; color: #ffd0d0; }
+.tone-green { background: #163226; color: #d7ffe8; }
+.warn-list { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
+.uav-tip { background: #0e1511; border: 1px solid var(--line); }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+label.btn { position: relative; cursor: pointer; }
+
 @media (max-width: 800px) {
-  .modal-grid, .mother-metrics { grid-template-columns: 1fr; }
+  .modal-grid, .mother-metrics, .uav-fields, .uav-metrics { grid-template-columns: 1fr; }
   .modal-backdrop { padding: 8px; align-items: stretch; }
   .modal { max-height: none; height: 100%; border-radius: 8px; }
 }
